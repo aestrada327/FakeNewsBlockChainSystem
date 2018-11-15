@@ -32,6 +32,12 @@ class Network:
             if not(miner is user):
                 miner.recieve(rating)
 
+    # sends a new block to everyone in the network
+    def send_block(self,user,block):
+        for curr_user in self.users:
+            if not(curr_user is user):
+                curr_user.recieve_block(block)
+
 #Users that rank documents
 class User:
     def __init__(self, money = 0, blockchain = None):
@@ -77,13 +83,57 @@ class Rating:
     def __init__(self):
         pass
 
-# A Block that is palced in the block chain
+# A Block that is placed in the block chain
 class Block:
-    def __init__(self):
-        pass
+    #class variables
+    max_num_ratings = 100
+
+    def __init__(self,prefix,footer,rating_lst):
+        self.prefix = prefix
+        self.rating_lst = []
+        self.footer = footer
+
+        for rating in rating_lst:
+            if len(rating) < Block.max_num_ratings:
+                if isinstance(rating,Rating):
+                    self.rating_lst.append(rating)
+            else:
+                break
+
+    def add_ratings(self,rating_lst):
+        for rating in rating_lst:
+            if len(rating) < max_num_ratings:
+                if isinstance(rating,Rating):
+                    self.rating_lst.append(rating)
+            else:
+                break
+
+    def change_footer(self,footer):
+        self.footer = footer
+
+    def change_header(self,header):
+        self.header = header
+
+    # replaces the ratings information with the new information
+    def replace_ratings(self,rating_lst):
+        first = -1
+        for i,rating in enumerate(rating_lst):
+            if len(self.rating_lst) < max_num_ratings:
+                if isinstance(rating,Rating):
+                    self.rating_lst.append(rating)
+            elif first == -1:
+                first = i
+            else:
+                if i - first >= len(rating_lst) - 1:
+                    first = i
+                self.rating_lst[i-first] = rating
 
 #Block Chain class type
 class Block_Chain:
-    def _init__(self):
-        pass
+    def _init__(self,block_lst = []):
+        self.block_lst = block_lst
+    def add_block(self,block):
+        self.block_lst.append(block)
+
+
 
