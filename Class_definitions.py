@@ -38,7 +38,7 @@ class Network:
             if not(curr_user is user):
                 curr_user.recieve_block(block)
 
-#Users that rank documents
+#Generic user of website
 class User:
     def __init__(self, money = 0, blockchain = None):
         self.money = money
@@ -52,13 +52,19 @@ class User:
             return False
         return True
 
+    # checks to see if valid block to add to blockchain
     @staticmethod
     def Valid_Block(block,blockchain):
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
-            if block.header == blockchain.get_last_hash():
+            if block.header == blockchain.get_last_hash() and User.__Valid_Ratings(block.rating_lst):
                 return True
         return False
+
+    # checks if the ratings in a block list are correctly defined
+    @staticmethod
+    def __Valid_Ratings(rating_lst):
+        pass
 
 class Miner(User):
     def __init__(self):
@@ -147,7 +153,7 @@ class BlockChain:
         if isinstance(block,Block):
             self.block_lst.append(block)
 
-    #gets the last hash of the previous function
+    #gets the hash of the last block in the block_chain
     def get_last_hash(self):
         length = len(self.block_lst)
         if length == 0:
