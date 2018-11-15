@@ -1,5 +1,6 @@
 import hashlib
 import random
+### THIS FILE DEFINES ALL THE RELEVANT CLASSES FOR the Fake News Reputation System Simulation ####
 
 # The Network class takes care of passing messages between nodes and is in charge of connecting different nodes
 class Network:
@@ -40,9 +41,11 @@ class Network:
 
 #Generic user of website
 class User:
-    def __init__(self, money = 0, blockchain = None):
+    def __init__(self,private_key,public_key,money = 0, blockchain = None):
         self.money = money
         self.blockchain = blockchain
+        self.private_key = private_key
+        self.public_key = public_key
 
     #adds block to its current block chain to see if i
     def recieve_block(self,block):
@@ -66,6 +69,10 @@ class User:
     def __Valid_Ratings(rating_lst):
         pass
 
+    # defines how a user will recieve an object passed in from the network
+    def recieve(self,object):
+        pass
+
 class Miner(User):
     def __init__(self):
         pass
@@ -86,7 +93,16 @@ class Miner_Ranker(User,Miner,Ranker):
     def __init__(self):
         pass
 
-#defining nonusers hard objects
+#A source that exclusively makes new documents
+class Media_Source:
+    def __init__(self):
+        pass
+    def makeDoc(self):
+        pass
+    def publishDoc(self):
+        pass
+
+# defines a news article/document
 class Document:
     def __init__(self):
         pass
