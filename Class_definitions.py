@@ -53,7 +53,12 @@ class User:
         return True
 
     def Valid_Block(block,blockchain):
-        pass
+        if isinstance(block,Block) and isinstance(blockchain,BlockChain):
+            #ensures that the current block has the previous hash
+
+        else:
+            return False
+
 
 class Miner(User):
     def __init__(self):
@@ -129,11 +134,20 @@ class Block:
                 self.rating_lst[i-first] = rating
 
 #Block Chain class type
-class Block_Chain:
-    def _init__(self,block_lst = []):
-        self.block_lst = block_lst
+class BlockChain:
+    def __init__(self,block_lst = []):
+        if all():
+            self.block_lst = block_lst
+
     def add_block(self,block):
-        self.block_lst.append(block)
+        if isinstance(block,Block):
+            self.block_lst.append(block)
 
-
-
+    #gets the last hash of the previous function
+    def get_last_hash(self):
+        length = len(self.block_lst)
+        if length == 0:
+            return None
+        else:
+            last_block = self.block_lst[length]
+            return last_block.footer
