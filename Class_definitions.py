@@ -46,19 +46,19 @@ class User:
 
     #adds block to its current block chain to see if i
     def recieve_block(self,block):
-        if Valid_Block(block,self.blockchain):
+        if User.Valid_Block(block,self.blockchain):
             self.blockchain.add(block)
         else:
             return False
         return True
 
+    @staticmethod
     def Valid_Block(block,blockchain):
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
-
-        else:
-            return False
-
+            if block.header == blockchain.get_last_hash():
+                return True
+        return False
 
 class Miner(User):
     def __init__(self):
@@ -66,6 +66,8 @@ class Miner(User):
     def mine(self):
         pass
     def add_block_to_blockchain(self):
+        pass
+    def send_block_to_users(self):
         pass
 
 # users that rank documents
@@ -136,8 +138,10 @@ class Block:
 #Block Chain class type
 class BlockChain:
     def __init__(self,block_lst = []):
-        if all():
+        if all(map(lambda x: isinstance(x,Block), block_lst)):
             self.block_lst = block_lst
+        else:
+            self.block_lst = []
 
     def add_block(self,block):
         if isinstance(block,Block):
