@@ -1,1 +1,1 @@
-# Block Chain for Fake News Reputation System
+# A Block Chain Based Reputation System for detecting and classifying Fake News Articles
