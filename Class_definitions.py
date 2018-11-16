@@ -12,6 +12,7 @@ class Network:
             raise Exception("Invalid input: Network only admits a service")
         self.miners = []
         self.rankers = []
+        self.websites = []
         for user in users:
             if isinstance(x,Miner):
                 self.miners.append(user)
@@ -28,6 +29,11 @@ class Network:
                 if isinstance(x, Ranker):
                     self.rankers.append(user)
 
+    # adds a website to the network
+    def add_website(self,website):
+        if isinstance(website,Website):
+            self.websites.append(website)
+
     #sends a rating to all the miners in the network
     def send_rating_to_miners(self,user,rating):
         for miner in self.miners:
@@ -40,15 +46,21 @@ class Network:
             if not(curr_user is user):
                 curr_user.recieve_block(block)
 
+#Stores current documents and makes documents accessible to readers
+class Website:
+    def __init__(self,network):
+        self.documents = []
+        self.network = network
+        if isinstance(self.network,Network):
+            self.network.add_website(self)
+
 #Generic user of website
 class User:
-
     def __init__(self,private_key,public_key,money = 0, blockchain = None):
         self.money = money
         self.blockchain = blockchain
         self.private_key = private_key
         self.public_key = public_key
-
 
     #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
