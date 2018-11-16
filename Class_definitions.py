@@ -50,7 +50,7 @@ class User:
         self.public_key = public_key
 
 
-    #adds block to its current block chain to see if i
+    #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
         if User.Valid_Block(block,self.blockchain):
             self.blockchain.add(block)
@@ -76,7 +76,7 @@ class User:
     # defines how a user will recieve an object passed in from the network
     def recieve(self,object):
         pass
-
+#TODO
 class Miner(User):
     def __init__(self):
         pass
@@ -88,11 +88,13 @@ class Miner(User):
         pass
 
 # users that rank documents
+#TODO
 class Ranker(User):
     def __init__(self):
         pass
 
 # incase a user is a ranker and a miner
+#TODO
 class Miner_Ranker(User,Miner,Ranker):
     def __init__(self):
         pass
@@ -106,7 +108,7 @@ class Media_Source:
     max_trust = 10
 
     def __init__(self, document_lst = [],trustworthiness = -1):
-        if all(map(lambda x: isinstance(x,Document),document_lst))
+        if all(map(lambda x: isinstance(x,Document),document_lst)):
             self.document_lst = document_lst
         else:
             self.document_lst = []
