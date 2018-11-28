@@ -1,6 +1,7 @@
 import hashlib
 import random
 from hashlib import sha256
+import bisect
 ### THIS FILE DEFINES ALL THE RELEVANT CLASSES FOR the Fake News Reputation System Simulation ####
 
 # The Network class takes care of passing messages between nodes and is in charge of connecting different nodes
@@ -46,10 +47,12 @@ class Network:
             if not(curr_user is user):
                 curr_user.recieve_block(block)
 
+    def get_new_IP_Address(self):
+        pass
+
 #Stores current documents and makes documents accessible to readers
 class Website:
     def __init__(self,network):
-        self.topics_dict = {}
         self.network = network
         if isinstance(self.network,Network):
             self.network.add_website(self)
@@ -59,17 +62,52 @@ class Website:
             self.network =network
             self.network.add_website(self)
 
+class Document_Website(Website):
+    def __init__(self,network,documents = []):
+        super.__init__(self,network)
+        self.topics_dict = {}
+        self.add_documents(documents)
+
     def add_documents(self,documents):
         if all(map(lambda x: isinstance(x,Document),documents)):
             for document in documents:
                 if document.topic in self.topics_dict:
                     if document.source in self.topics_dict[document.topic]:
-                        self.topics_dict[document.topic].append(document)
+                        self.topics_dict[document.topic][document.source].append(document)
                     else:
-                        self.topics_dict[document.topic]
+                        self.topics_dict[document.topic]= {}
+                        self.topics_dict[document.topic][document.source] = [document]
                 else:
                     self.topics_dict[document.topic] = {}
                     self.topics_dict[document.topic][document.source] = [document]
+
+class Certificate_Website(Website):
+    def __init__(self,network):
+        super.__init__(network)
+        self.public_keys = []
+        self.certificates = {}
+
+    def __make_certificate(self,IP,PK):
+        self.certificates[IP] = PK
+
+    def __Valid_Public_Key(self,PK):
+        # binary search for public key
+        index = bisect.bisect_left(self.public_keys,PK)
+        if self.public_keys[index] == PK:
+            return True
+        else:
+            return False
+
+    def __add_Public_Key(self,PK):
+        bisect.insort_right(self.public_keys,PK)
+
+    def check_valid_certificate(self,IP,PK):
+        return ((IP in self.certificates) and self.certificates[IP] == PK)
+
+    def submit_PK(self,IP,PK):
+        if self.__Valid_Public_Key(PK):
+            self.__add_Public_Key(PK)
+            self.__make_certificate(IP,PK)
 
 #Generic user of website
 class User:
@@ -79,6 +117,7 @@ class User:
         self.private_key = private_key
         self.public_key = public_key
         self.network = network
+        self.IP_Address = network.get_new_IP_address()
 
     #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
