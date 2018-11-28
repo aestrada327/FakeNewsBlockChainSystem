@@ -4,7 +4,8 @@ from hashlib import sha256
 import bisect
 ### THIS FILE DEFINES ALL THE RELEVANT CLASSES FOR the Fake News Reputation System Simulation ####
 
-# The Network class takes care of passing messages between nodes and is in charge of connecting different nodes
+# The Network class takes care of passing messages between nodes, providing users access to different websites
+# and assigning IP_addresses to each user
 class Network:
     def __init__(self,*users):
         if all(map(lambda x: isinstance(x,User), users)):
@@ -47,10 +48,11 @@ class Network:
             if not(curr_user is user):
                 curr_user.recieve_block(block)
 
+    #gives new_IP address to each user
     def get_new_IP_Address(self):
         pass
 
-#Stores current documents and makes documents accessible to readers
+#Generic website that makes has a network
 class Website:
     def __init__(self,network):
         self.network = network
@@ -62,12 +64,15 @@ class Website:
             self.network =network
             self.network.add_website(self)
 
+#Website that provides documents to the users, and collects documents from each media source in the network
 class Document_Website(Website):
+
     def __init__(self,network,documents = []):
         super.__init__(self,network)
         self.topics_dict = {}
         self.add_documents(documents)
 
+    # adds documents to its storage system
     def add_documents(self,documents):
         if all(map(lambda x: isinstance(x,Document),documents)):
             for document in documents:
@@ -81,29 +86,38 @@ class Document_Website(Website):
                     self.topics_dict[document.topic] = {}
                     self.topics_dict[document.topic][document.source] = [document]
 
+    # Collects all the Documents with Source and topic specifications
+    def get_documents(self,source = None, topic = None):
+        if topic in self.topics_dict:
+            if source in self.topics_dict[topic]:
+                return self.topics_dict[source][topic]
+        return None
+
+# Website that Acts as Certificate Authority providing correct public and private key information
 class Certificate_Website(Website):
     def __init__(self,network):
         super.__init__(network)
         self.public_keys = []
         self.certificates = {}
-
+    # Makes certificae using
+    #TODO: Update to ensure new encryption method is included
     def __make_certificate(self,IP,PK):
         self.certificates[IP] = PK
 
+    # Searches to see if PK is in the list
     def __Valid_Public_Key(self,PK):
         # binary search for public key
         index = bisect.bisect_left(self.public_keys,PK)
-        if self.public_keys[index] == PK:
-            return True
-        else:
-            return False
+        return self.public_keys[index] == PK
 
+    # adds public key in a sorted fashion
     def __add_Public_Key(self,PK):
         bisect.insort_right(self.public_keys,PK)
 
     def check_valid_certificate(self,IP,PK):
         return ((IP in self.certificates) and self.certificates[IP] == PK)
 
+    #way for users to submit a Public Key to the Certificate Authority
     def submit_PK(self,IP,PK):
         if self.__Valid_Public_Key(PK):
             self.__add_Public_Key(PK)
@@ -137,23 +151,33 @@ class User:
         return False
 
     # checks if the ratings in a block list are correctly defined
-    #TODO
     @staticmethod
     def __Valid_Ratings(rating_lst):
+        return all(map(lambda rating: User.__Valid_Rating(rating), rating_lst))
+
+    #TODO # work out once encryption is finished
+    @staticmethod
+    def __Valid_Rating():
         pass
 
     # defines how a user will recieve an object passed in from the network
+    #TODO
     def recieve(self,object):
         pass
 #TODO
 class Miner(User):
-    def __init__(self):
+    def __init__(self,private_key,public_key,network,money = 0, blockchain = None,ratings = []):
+        super.__init__(private_key,public_key,network,money, blockchain)
+        self.__block = Block()
+
+
+    #searches for correct hash value
+    def Mine_Hash_Val(self):
         pass
-    def mine(self):
+
+    def Add_block_to_blockchain(self):
         pass
-    def add_block_to_blockchain(self):
-        pass
-    def send_block_to_users(self):
+    def Send_block_to_users(self):
         pass
 
 # users that rank documents
@@ -229,25 +253,20 @@ class Block:
     #class variables
     max_num_ratings = 100
 
-    def __init__(self,prefix,footer,rating_lst):
+    def __init__(self,prefix,footer,rating_lst = []):
         self.prefix = prefix
         self.rating_lst = []
         self.footer = footer
+        self.add_ratings(rating_lst)
 
-        for rating in rating_lst:
-            if len(rating) < Block.max_num_ratings:
-                if isinstance(rating,Rating):
-                    self.rating_lst.append(rating)
-            else:
-                break
-
+    # adds ratings to block until max_num_ratings per block is reached
     def add_ratings(self,rating_lst):
-        for rating in rating_lst:
-            if len(rating) < Block.max_num_ratings:
-                if isinstance(rating,Rating):
+        if all(map(lambda rating: isinstance(rating,Rating))):
+            for rating in rating_lst:
+                if len(rating) < Block.max_num_ratings:
                     self.rating_lst.append(rating)
-            else:
-                break
+                else:
+                    break
 
     def change_footer(self,footer):
         self.footer = footer
@@ -255,7 +274,7 @@ class Block:
     def change_header(self,header):
         self.header = header
 
-    # replaces the ratings information with the new information
+    # replaces the ratings information with the new ratings
     def replace_ratings(self,rating_lst):
         first = -1
         for i,rating in enumerate(rating_lst):
