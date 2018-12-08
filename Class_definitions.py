@@ -108,7 +108,8 @@ class Certificate_Website(Website):
         super.__init__(network)
         self.public_keys = []
         self.certificates = {}
-    # Makes certificae using
+
+    # Makes certificate using
     #TODO: Update to ensure new encryption method is included
     def __make_certificate(self,IP,PK):
         self.certificates[IP] = PK
@@ -165,7 +166,7 @@ class User:
     def Valid_Block(block,blockchain):
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
-            if block.header == blockchain.get_last_hash() and User.__Valid_Ratings(block.rating_lst):
+            if block.prefix == blockchain.get_last_hash() and User.__Valid_Ratings(block.rating_lst):
                 return True
         return False
 
@@ -229,9 +230,7 @@ class Ranker(User):
 
 # incase a user is a ranker and a miner
 class Miner_Ranker(User,Miner,Ranker):
-    def publish_ranking(self):
-        pass
-
+    pass
 
 #A source that exclusively makes new documents
 #TODO
@@ -284,32 +283,44 @@ class Rating:
         self.rating = rating
         self.rater = rater
         self.hashed_signature = hashed_signature
+    #TODO Converts the rating into a string
+    def toString(self):
+        pass
 
 # A Block that is placed in the block chain
 class Block:
     #class variables
     max_num_ratings = 100
 
-    def __init__(self,prefix,footer = None,rating_lst = []):
+    def __init__(self,prefix,miner_PK, nonce, footer = None,rating_lst = []):
         self.prefix = prefix
         self.rating_lst = []
-        self.footer = footer
+        self.nonce = nonce
+        self.generation_transaction = miner_PK
         self.add_ratings(rating_lst)
+        self.footer = self.__generatehashval()
 
     # adds ratings to block until max_num_ratings per block is reached
     def add_ratings(self,rating_lst):
         if all(map(lambda rating: isinstance(rating,Rating))):
             for rating in rating_lst:
-                if len(rating) < Block.max_num_ratings:
+                if len(self.rating_lst) < Block.max_num_ratings:
                     self.rating_lst.append(rating)
                 else:
                     break
 
-    def change_footer(self,footer):
-        self.footer = footer
+    #changes the previous hash value for block by calculating the hash
+    def update_footer(self):
+        self.footer = self.__generatehashval()
 
-    def change_header(self,header):
-        self.header = header
+    # changes the nonce value and changes the footer hash as well
+    def change_nonce(self,nonce):
+        self.nonce = nonce
+        self.update_footer()
+
+    #changes the prefix
+    def change_prefix(self,prefix):
+        self.prefix = prefix
 
     # replaces the ratings information with the new ratings
     def replace_ratings(self,rating_lst):
@@ -324,6 +335,20 @@ class Block:
                 if i - first >= len(rating_lst) - 1:
                     first = i
                 self.rating_lst[i-first] = rating
+
+    #getting the string representation of all the ratings and accumulating them onto a string
+    def __accumulate_strings_of_ratings(self):
+        str_lst = []
+        for rating in self.rating_lst:
+            str_lst.append(rating.toString())
+        return (''.join(str_lst))
+
+    #hashes with the sha256 the nonce value, the previous hash, and the transactions in the block respectively
+    def __generatehashval(self):
+        hasher = sha256()
+        hashvals = [str(self.nonce),self.prefix,self.__accumulate_strings_of_ratings()]
+        hasher.update(''.join(hashvals))
+        return hasher.hexdigest()
 
 #Block Chain class type
 class BlockChain:
