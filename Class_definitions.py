@@ -283,11 +283,12 @@ class Rating:
         self.rating = rating
         self.rater = rater
         self.hashed_signature = hashed_signature
-    #TODO Converts the rating into a string
+
+    #TODO Converts the rating into a string, needed for Block Hash_Values
     def toString(self):
         pass
 
-# A Block that is placed in the block chain
+# A Block that includes Transactions, Ratings, Generational Hash, Nonce Value, Cryptography
 class Block:
     #class variables
     max_num_ratings = 100
@@ -350,6 +351,7 @@ class Block:
         hasher.update(''.join(hashvals))
         return hasher.hexdigest()
 
+# a Doubly Linked list of Block classes
 class Block_Node:
     def __init__(self,block,prev = None,nxt = None,forked = None):
         self.prev = prev
@@ -363,7 +365,7 @@ class Block_Node:
     def change_forked(self,forked_val):
         self.forked = forked_val
 
-#Block Chain class type
+#Block Chain that keeps track of a Block_Nodes to enable easy forking abilities
 class BlockChain:
     #class variable
     # maximum difference for two block chains to be different in length until one is dropped
@@ -381,18 +383,91 @@ class BlockChain:
     def __get_length(self,first,last):
         counter = 0
         curr_b = last
-        while curr_b != None:
+        while curr_b != None and counter < 100000:
             if curr_b is first:
                 return counter + 1
             else:
                 curr_b = curr_b.prev
-        raise Exception("First and Last Block are not connected")
+                counter += 1
+        return None
 
     def add_block_end(self,block):
         if isinstance(block,Block_Node):
+            block.prev = self.last_b
             self.last_b.change_nxt(block)
             self.last_b = block
             self.total_length += 1
+            return True
+        return False
+
+    def add_block_end_forked(self,block):
+        if isinstance(block,Block_Node) and self.forked_last_val != None:
+            block.prev = self.forked_last_val
+            self.forked_last_val.nxt = block
+            self.forked_last_val = block
+            self.forked_length += 1
+            return True
+        return False
+
+    #Adds a block to the block chain ensuring prefix manner, Includes prefix
+    #returns boolean statement stating if block was added to the chain or not
+    def add_block_prefix_matching(self,block):
+        #ensuring proper data_structure was passed in
+        if isinstance(block,Block):
+            n_block = Block_Node(block)
+        elif isinstance(Block_Node,block):
+            n_block = block
+        else:
+            return False
+        #finding valid block
+        [valid_block,is_forked] = self.__search_for_block_with_hash(n_block.block.prefix)
+
+        # checking to see if a block was found
+        if valid_block == None:
+            return False
+        elif is_forked:
+            # adding block to the end of the forked value
+            if valid_block is self.forked_last_val:
+                self.add_block_end_forked(valid_block)
+                return True
+            return False
+        else:
+
+            if valid_block is self.last_b:
+                self.add_block_end(n_block)
+                return True
+
+            # getting length of new block chain
+            length_valid = self.__get_length(self.first_b,valid_block) + 1
+            # changing forked value to new block if length of new block chain is greater than previous
+            if length_valid > self.forked_length :
+                self.__update_forked_vals(valid_block,n_block)
+                return True
+            return False
+
+    # Forks Blockchain at Forked_b with forked_b value
+    #returns  True or False if forking is possibly
+    def __update_forked_vals(self,forked_b,first_fork_b):
+        # ensuring both args ars Block Nodes and Valid Blocks to Fork
+        if isinstance(forked_b,Block_Node) and isinstance(first_fork_b,Block_Node)\
+                and forked_b != None and first_fork_b != None and not (forked_b is self.last_b):
+            self.__reset_forked_vals()
+            self.forked_b = forked_b
+            self.forked_b.forked = first_fork_b
+            first_fork_b.prev = self.forked_b
+            self.forked_last_val = first_fork_b
+            self.forked_length = self.__get_length(self.first_b, self.forked_last_val)
+            return True
+        return False
+
+    # resets forked values to initial starting positions
+    # removing any forked values from Linked List
+    def __reset_forked_vals(self):
+        if self.forked_b != None:
+            self.forked_b.forked = None
+        self.forked_b = None
+        self.forked_last_val = None
+        self.forked_length = 0
 
     def change_forked_b(self,forked_b,forked_val):
         self.forked_b = forked_b
@@ -400,23 +475,37 @@ class BlockChain:
         self.forked_last_val = forked_val
         self.forked_length = self.__get_length(self.first_b,self.forked_last_val)
 
+    #Changes blockchain to keep longest block_chain (chooses either forked value or original blockchain)
+    # if both chains are the same length: keeps original chain and erases forked value
+    def Update_BlockChain(self):
+        if self.forked_length > self.total_length:
+            #changing forked chain as original
+            self.total_length = self.forked_length
+            self.last_b = self.forked_last_val
+        #resetting forked vals
+        self.__reset_forked_vals()
+
     #search for block that is less than max_diff away from end and also has same prefix value
-    def search_for_valid(self,prev_hash):
+    #returns a list with elements: 1. the Found Valid Block 2. is the block a forked value
+    def __search_for_block_with_hash(self,prev_hash):
         # searching for correct prefix in unforked chain
         primary_search_val = self.__search(BlockChain.max_diff,prev_hash,self.last_b)
-
         if primary_search_val != None:
-            return primary_search_val
-        else:
+            return [primary_search_val,False]
+        elif self.forked_last_val != None:
             # searching through forked blockchain
             forked_search_val = self.__search(BlockChain.max_diff,prev_hash,self.forked_last_val)
-            return forked_search_val
+            return [forked_search_val,True]
 
+    # searches through linked list starting end value to find prev_hash value
+    # looks up to distance of max length from end
     def __search(self,max_length,prev_hash,last_block):
         counter = max_length
         temp_block = last_block
         for i in range(counter):
-            if temp_block.block.footer == prev_hash:
+            if temp_block == None:
+                return None
+            elif temp_block.block.footer == prev_hash:
                 return temp_block
             elif temp_block.prev != None:
                 temp_block = temp_block.prev
@@ -426,4 +515,16 @@ class BlockChain:
 
     #gets the hash of the last block in the block_chain
     def get_last_hash(self):
+        if self.last_b == None:
+            return None
         return self.last_b.block.footer
+
+    #gets the hash of the forked value
+    def get_last_forked_hash(self):
+        if self.forked_last_val == None:
+            return None
+        return self.forked_last_val.block.footer
+
+    # returns the original and forked blockchain last hashes
+    def get_last_hashes(self):
+        return [self.get_last_hash(),self.get_last_forked_hash()]
