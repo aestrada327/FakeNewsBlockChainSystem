@@ -143,7 +143,7 @@ class User:
 
         #generating private/public key pairs
         if private_key == None or public_key == None:
-            self.private_key = generate_private_key()
+            self.private_key = self.generate_private_key()
             self.public_key = self.private_key.publickey()
         else:
             self.private_key = private_key
@@ -350,23 +350,80 @@ class Block:
         hasher.update(''.join(hashvals))
         return hasher.hexdigest()
 
+class Block_Node:
+    def __init__(self,block,prev = None,nxt = None,forked = None):
+        self.prev = prev
+        self.nxt = nxt
+        self.forked = forked
+        self.block = block
+
+    def change_nxt(self,nxt):
+        self.nxt = nxt
+
+    def change_forked(self,forked_val):
+        self.forked = forked_val
+
 #Block Chain class type
 class BlockChain:
-    def __init__(self,block_lst = []):
-        if all(map(lambda x: isinstance(x,Block), block_lst)):
-            self.block_lst = block_lst
-        else:
-            self.block_lst = []
+    #class variable
+    # maximum difference for two block chains to be different in length until one is dropped
+    max_diff = 5
 
-    def add_block(self,block):
-        if isinstance(block,Block):
-            self.block_lst.append(block)
+    def __init__(self,first_b,last_b):
+        self.first_b = first_b
+        self.last_b = last_b
+        self.total_length = self.__get_length(self.first_b,self.last_b)
+        self.forked_b = None
+        self.forked_length = 0
+        self.forked_last_val = None
+
+    # gets length by working backwards from last to first
+    def __get_length(self,first,last):
+        counter = 0
+        curr_b = last
+        while curr_b != None:
+            if curr_b is first:
+                return counter + 1
+            else:
+                curr_b = curr_b.prev
+        raise Exception("First and Last Block are not connected")
+
+    def add_block_end(self,block):
+        if isinstance(block,Block_Node):
+            self.last_b.change_nxt(block)
+            self.last_b = block
+            self.total_length += 1
+
+    def change_forked_b(self,forked_b,forked_val):
+        self.forked_b = forked_b
+        self.forked_b.forked = forked_val
+        self.forked_last_val = forked_val
+        self.forked_length = self.__get_length(self.first_b,self.forked_last_val)
+
+    #search for block that is less than max_diff away from end and also has same prefix value
+    def search_for_valid(self,prev_hash):
+        # searching for correct prefix in unforked chain
+        primary_search_val = self.__search(BlockChain.max_diff,prev_hash,self.last_b)
+
+        if primary_search_val != None:
+            return primary_search_val
+        else:
+            # searching through forked blockchain
+            forked_search_val = self.__search(BlockChain.max_diff,prev_hash,self.forked_last_val)
+            return forked_search_val
+
+    def __search(self,max_length,prev_hash,last_block):
+        counter = max_length
+        temp_block = last_block
+        for i in range(counter):
+            if temp_block.block.footer == prev_hash:
+                return temp_block
+            elif temp_block.prev != None:
+                temp_block = temp_block.prev
+            else:
+                return None
+        return None
 
     #gets the hash of the last block in the block_chain
     def get_last_hash(self):
-        length = len(self.block_lst)
-        if length == 0:
-            return None
-        else:
-            last_block = self.block_lst[length]
-            return last_block.footer
+        return self.last_b.block.footer
