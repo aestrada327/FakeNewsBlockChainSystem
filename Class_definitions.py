@@ -51,10 +51,15 @@ class Network:
             self.websites.append(website)
 
     # sends a rating to all the miners in the network
-    def send_rating_to_miners(self, user, rating):
+    def send_rating_to_miners(self, sender, rating):
         for miner in self.miners:
-            if not(miner is user):
-                miner.recieve(rating)
+            if not (miner is sender):
+                miner.recieve_rating(rating)
+
+    def send_ratings_to_miners(self,sender,ratings):
+        for miner in self.miners:
+            if not (miner is sender):
+                miner.recieve_ratings(ratings)
 
     # sends a new block to everyone in the network
     def send_block(self,user,block):
@@ -68,6 +73,7 @@ class Network:
         self.IPs.append([mac_address,len(self.IPs)+1])
         return len(self.IPs)
 
+    # publishes documents in the document lst
     def publish_documents(self,document_lst):
         doc_web_found = False
         for website in self.websites:
@@ -75,7 +81,6 @@ class Network:
                 website.add_documents(document_lst)
                 doc_web_found = True
         return doc_web_found
-
 
 # Generic website that makes has a network
 class Website:
@@ -203,20 +208,20 @@ class User:
 
     # checks if the ratings in a block list are correctly defined
     @staticmethod
-    def __Valid_Ratings(rating_lst):
-        return all(map(lambda rating: User.__Valid_Rating(rating), rating_lst))
+    def Valid_Ratings(rating_lst):
+        return all(map(lambda rating: User.Valid_Rating(rating), rating_lst))
 
     #TODO # work out once encryption is finished
     @staticmethod
-    def __Valid_Rating():
+    def Valid_Rating(rating):
         pass
 
     # defines how a user will recieve an object passed in from the network
-    #TODO
     def recieve(self,object):
-        pass
+        if isinstance(object,Block):
+            self.recieve_block(object)
 
-# TODO
+
 class Miner(User):
     # average time (secs) for hash
     avg_time_hash = 60
@@ -232,17 +237,29 @@ class Miner(User):
     def Mine_Hash_Val(self):
         time.sleep(Miner.avg_time_hash)
 
-    def Add_block_to_blockchain(self):
-        pass
+    def Add_block_to_blockchain(self,block):
+        self.blockchain.add_block_to_end(block)
 
-    def Send_block_to_users(self):
-        pass
+    def send_block_to_users(self):
+        self.network.send_block(self.__block,self)
 
-    def recieve_rating(self):
-        pass
+    def recieve_rating(self,rating):
+        if isinstance(rating,Rating):
+            self.add_rating_to_block(rating)
 
-    def recieve_ratings(self):
-        pass
+    def recieve_ratings(self,rating_lst):
+        if all(map(lambda rating: isinstance(rating,Rating) and User.Valid_Rating(rating), rating_lst)):
+            self.add_ratings_to_block(rating_lst)
+        else:
+            for rating in rating_lst:
+                if User.Valid_Rating(rating) and isinstance(rating,Rating):
+                    self.add_rating_to_block(rating)
+
+    def add_rating_to_block(self,rating):
+        self.__block.add_ratings([rating])
+
+    def add_ratings_to_block(self,ratings):
+        self.__block.add_ratings(ratings)
 
 # users that rank documents
 # TODO
@@ -257,8 +274,8 @@ class Ranker(User):
     def give_ranking(self,doc):
         pass
 
-    def publish_ranking(self):
-        pass
+    def publish_rankings(self,rankings):
+        self.network.publish_rankings(rankings)
 
 # incase a user is a ranker and a miner
 class Miner_Ranker(User,Miner,Ranker):
@@ -427,6 +444,13 @@ class BlockChain:
         return None
 
     def add_block_end(self,block):
+        if isinstance(block,Block):
+            n_block = Block_Node(block)
+            n_block.prev = self.last_b
+            self.last_b.change_nxt(n_block)
+            self.last_b = n_block
+            self.total_length += 1
+            return True
         if isinstance(block, Block_Node):
             block.prev = self.last_b
             self.last_b.change_nxt(block)
@@ -436,7 +460,14 @@ class BlockChain:
         return False
 
     def add_block_end_forked(self, block):
-        if isinstance(block, Block_Node) and self.forked_last_val is not None:
+        if isinstance(block,Block):
+            n_block = Block_Node(block)
+            n_block.prev = self.forked_last_val
+            self.forked_last_val.nxt = n_block
+            self.forked_last_val = n_block
+            self.forked_length += 1
+            return True
+        elif isinstance(block, Block_Node) and self.forked_last_val is not None:
             block.prev = self.forked_last_val
             self.forked_last_val.nxt = block
             self.forked_last_val = block
@@ -512,7 +543,7 @@ class BlockChain:
 
     # Changes blockchain to keep longest block_chain (chooses either forked value or original blockchain)
     # if both chains are the same length: keeps original chain and erases forked value
-    def Update_BlockChain(self):
+    def update_blockchain(self):
         if self.forked_length > self.total_length:
             # changing forked chain as original
             self.total_length = self.forked_length
