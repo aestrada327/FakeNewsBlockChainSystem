@@ -12,42 +12,46 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 from Crypto.PublicKey import RSA
 from Crypto import Random
 
-### THIS FILE DEFINES ALL THE RELEVANT CLASSES FOR the Fake News Reputation System Simulation ####
+# THIS FILE DEFINES ALL THE RELEVANT CLASSES FOR the Fake News Reputation System Simulation ####
 
 # The Network class takes care of passing messages between nodes, providing users access to different websites
 # and assigning IP_addresses to each user
 class Network:
     def __init__(self,*users):
-        if all(map(lambda x: isinstance(x,User), users)):
+        if all(map(lambda user: isinstance(user,User), users)):
             self.users = list(users)
         else:
             raise Exception("Invalid input: Network only admits a service")
         self.miners = []
         self.rankers = []
         self.websites = []
+        self.IPs = []
         for user in users:
-            if isinstance(x,Miner):
+            if isinstance(user,Miner):
                 self.miners.append(user)
-            if isinstance(x,Ranker):
+            if isinstance(user,Ranker):
+                self.rankers.append(user)
+            if isinstance(user,Miner_Ranker):
+                self.miners.append(user)
                 self.rankers.append(user)
 
     #add users to the network
     def add_users(self,user_lst):
-        if all(map(lambda x: isinstance(x,User),user_lst)):
+        if all(map(lambda user: isinstance(user,User),user_lst)):
             for user in user_lst:
                 self.users.append(user)
-                if isinstance(x, Miner):
+                if isinstance(user, Miner):
                     self.miners.append(user)
-                if isinstance(x, Ranker):
+                if isinstance(user, Ranker):
                     self.rankers.append(user)
 
     # adds a website to the network
-    def add_website(self,website):
-        if isinstance(website,Website):
+    def add_website(self, website):
+        if isinstance(website, Website):
             self.websites.append(website)
 
-    #sends a rating to all the miners in the network
-    def send_rating_to_miners(self,user,rating):
+    # sends a rating to all the miners in the network
+    def send_rating_to_miners(self, user, rating):
         for miner in self.miners:
             if not(miner is user):
                 miner.recieve(rating)
@@ -58,11 +62,22 @@ class Network:
             if not(curr_user is user):
                 curr_user.recieve_block(block)
 
-    #gives new_IP address to each user
-    def get_new_IP_Address(self):
-        pass
+    # gives new_IP address to each user
+    #TODO store mac_addresses in a sorted fassion
+    def get_new_IP_Address(self, mac_address):
+        self.IPs.append([mac_address,len(self.IPs)+1])
+        return len(self.IPs)
 
-#Generic website that makes has a network
+    def publish_documents(self,document_lst):
+        doc_web_found = False
+        for website in self.websites:
+            if isinstance(website, Document_Website):
+                website.add_documents(document_lst)
+                doc_web_found = True
+        return doc_web_found
+
+
+# Generic website that makes has a network
 class Website:
     def __init__(self,network):
         self.network = network
@@ -74,16 +89,16 @@ class Website:
             self.network =network
             self.network.add_website(self)
 
-#Website that provides documents to the users, and collects documents from each media source in the network
+# Website that provides documents to the users, and collects documents from each media source in the network
 class Document_Website(Website):
     def __init__(self,network,documents = []):
-        super.__init__(self,network)
+        super(Document_Website,self).__init__(network)
         self.topics_dict = {}
         self.add_documents(documents)
 
     # adds documents to its storage system
     def add_documents(self,documents):
-        if all(map(lambda x: isinstance(x,Document),documents)):
+        if all(map(lambda doc: isinstance(doc,Document),documents)):
             for document in documents:
                 if document.topic in self.topics_dict:
                     if document.source in self.topics_dict[document.topic]:
@@ -105,12 +120,12 @@ class Document_Website(Website):
 # Website that Acts as Certificate Authority providing correct public and private key information
 class Certificate_Website(Website):
     def __init__(self,network):
-        super.__init__(network)
+        super(Certificate_Website,self).__init__(network)
         self.public_keys = []
         self.certificates = {}
 
     # Makes certificate using
-    #TODO: Update to ensure new encryption method is included
+    # TODO: Update to ensure new encryption method is included
     def __make_certificate(self,IP,PK):
         self.certificates[IP] = PK
 
@@ -127,27 +142,43 @@ class Certificate_Website(Website):
     def check_valid_certificate(self,IP,PK):
         return ((IP in self.certificates) and self.certificates[IP] == PK)
 
-    #way for users to submit a Public Key to the Certificate Authority
+    # way for users to submit a Public Key to the Certificate Authority
     def submit_PK(self,IP,PK):
         if self.__Valid_Public_Key(PK):
             self.__add_Public_Key(PK)
             self.__make_certificate(IP,PK)
 
-#Generic user of website
+# Generic user of website
 class User:
-    def __init__(self,network,private_key = None,public_key = None,money = 0, blockchain = None):
+
+    MAC_ADDRESS_LENGTH = 12
+
+    def __init__(self,network,private_key = None,public_key = None,money = 0, blockchain = None, mac_address = None):
         self.money = money
         self.blockchain = blockchain
         self.network = network
+
+        # generating MAC Address
+        if mac_address is not None:
+            self.MAC_ADDRESS = mac_address
+        else:
+            self.MAC_ADDRESS = self.__generate_MAC_ADDRESS()
+
         self.IP_Address = network.get_new_IP_address()
 
         #generating private/public key pairs
-        if private_key == None or public_key == None:
+        if private_key is None or public_key is None:
             self.private_key = self.generate_private_key()
             self.public_key = self.private_key.publickey()
         else:
             self.private_key = private_key
             self.public_key = public_key
+
+    def __generate_MAC_ADDRESS(self):
+        MAC_ADDRESS = []
+        for i in range(User.MAC_ADDRESS_LENGTH):
+            MAC_ADDRESS.append(str(random.randint(0,9)))
+        return ''.join(MAC_ADDRESS)
 
     def generate_private_key(self):
         random_generator = Random.new().read
@@ -185,13 +216,13 @@ class User:
     def recieve(self,object):
         pass
 
-#TODO
+# TODO
 class Miner(User):
     # average time (secs) for hash
     avg_time_hash = 60
 
     def __init__(self,private_key,public_key,network,money = 0, blockchain = None,ratings = []):
-        super.__init__(private_key,public_key,network,money, blockchain)
+        super(Miner,self).__init__(private_key,public_key,network,money, blockchain)
         # creating empty Block with previous hash
         self.__block = Block(blockchain.get_last_hash())
         self.mined_hash = None
@@ -212,11 +243,12 @@ class Miner(User):
 
     def recieve_ratings(self):
         pass
+
 # users that rank documents
-#TODO
+# TODO
 class Ranker(User):
     def __init__(self,private_key,public_key,doc_list,money = 0, blockchain = None):
-        super.__init__(self,private_key,public_key,money, blockchain)
+        super(Ranker,self).__init__(self,private_key,public_key,money, blockchain)
         self.doc_list = {}
 
     def get_new_doc(self):
@@ -236,13 +268,13 @@ class Miner_Ranker(User,Miner,Ranker):
 #TODO
 class Media_Source:
 
-    #trustworthiness metrics
+    # trustworthiness metrics
     min_trust = 0
     max_trust = 10
 
     def __init__(self,network, document_lst = [],trustworthiness = -1):
         self.network = network
-        if all(map(lambda x: isinstance(x,Document),document_lst)):
+        if all(map(lambda doc: isinstance(doc,Document),document_lst)):
             self.document_lst = document_lst
         else:
             self.document_lst = []
@@ -261,7 +293,10 @@ class Media_Source:
 
     #sends document to the whole network
     def publishDoc(self):
-        pass
+        if self.network is not None:
+            self.network.publish_documents(self.document_lst)
+            return True
+        return False
 
     def change_network(self,network):
         self.network = network
@@ -275,7 +310,7 @@ class Document:
         self.source = source
 
 # defines a rating generated by a user for a document
-# TODO # needs encrypption method
+# TODO # needs encryption method
 class Rating:
     def __init__(self,doc,media_source,rating,rater, hashed_signature):
         self.doc = doc
@@ -365,9 +400,9 @@ class Block_Node:
     def change_forked(self,forked_val):
         self.forked = forked_val
 
-#Block Chain that keeps track of a Block_Nodes to enable easy forking abilities
+# Block Chain that keeps track of a Block_Nodes to enable easy forking abilities
 class BlockChain:
-    #class variable
+    # class variable
     # maximum difference for two block chains to be different in length until one is dropped
     max_diff = 5
 
@@ -383,7 +418,7 @@ class BlockChain:
     def __get_length(self,first,last):
         counter = 0
         curr_b = last
-        while curr_b != None and counter < 100000:
+        while curr_b is not None and counter < 100000:
             if curr_b is first:
                 return counter + 1
             else:
@@ -392,7 +427,7 @@ class BlockChain:
         return None
 
     def add_block_end(self,block):
-        if isinstance(block,Block_Node):
+        if isinstance(block, Block_Node):
             block.prev = self.last_b
             self.last_b.change_nxt(block)
             self.last_b = block
@@ -400,8 +435,8 @@ class BlockChain:
             return True
         return False
 
-    def add_block_end_forked(self,block):
-        if isinstance(block,Block_Node) and self.forked_last_val != None:
+    def add_block_end_forked(self, block):
+        if isinstance(block, Block_Node) and self.forked_last_val is not None:
             block.prev = self.forked_last_val
             self.forked_last_val.nxt = block
             self.forked_last_val = block
@@ -411,19 +446,19 @@ class BlockChain:
 
     #Adds a block to the block chain ensuring prefix manner, Includes prefix
     #returns boolean statement stating if block was added to the chain or not
-    def add_block_prefix_matching(self,block):
+    def add_block_prefix_matching(self, block):
         #ensuring proper data_structure was passed in
-        if isinstance(block,Block):
+        if isinstance(block, Block):
             n_block = Block_Node(block)
-        elif isinstance(Block_Node,block):
+        elif isinstance(Block_Node, block):
             n_block = block
         else:
             return False
         #finding valid block
-        [valid_block,is_forked] = self.__search_for_block_with_hash(n_block.block.prefix)
+        [valid_block, is_forked] = self.__search_for_block_with_hash(n_block.block.prefix)
 
         # checking to see if a block was found
-        if valid_block == None:
+        if valid_block is None:
             return False
         elif is_forked:
             # adding block to the end of the forked value
@@ -438,19 +473,19 @@ class BlockChain:
                 return True
 
             # getting length of new block chain
-            length_valid = self.__get_length(self.first_b,valid_block) + 1
+            length_valid = self.__get_length(self.first_b, valid_block) + 1
             # changing forked value to new block if length of new block chain is greater than previous
             if length_valid > self.forked_length :
-                self.__update_forked_vals(valid_block,n_block)
+                self.__update_forked_vals(valid_block, n_block)
                 return True
             return False
 
     # Forks Blockchain at Forked_b with forked_b value
-    #returns  True or False if forking is possibly
-    def __update_forked_vals(self,forked_b,first_fork_b):
+    # returns  True or False if forking is possibly
+    def __update_forked_vals(self, forked_b, first_fork_b):
         # ensuring both args ars Block Nodes and Valid Blocks to Fork
-        if isinstance(forked_b,Block_Node) and isinstance(first_fork_b,Block_Node)\
-                and forked_b != None and first_fork_b != None and not (forked_b is self.last_b):
+        if isinstance(forked_b, Block_Node) and isinstance(first_fork_b, Block_Node)\
+                and forked_b is not None and first_fork_b is not None and not (forked_b is self.last_b):
             self.__reset_forked_vals()
             self.forked_b = forked_b
             self.forked_b.forked = first_fork_b
@@ -463,68 +498,68 @@ class BlockChain:
     # resets forked values to initial starting positions
     # removing any forked values from Linked List
     def __reset_forked_vals(self):
-        if self.forked_b != None:
+        if self.forked_b is not None:
             self.forked_b.forked = None
         self.forked_b = None
         self.forked_last_val = None
         self.forked_length = 0
 
-    def change_forked_b(self,forked_b,forked_val):
+    def change_forked_b(self, forked_b, forked_val):
         self.forked_b = forked_b
         self.forked_b.forked = forked_val
         self.forked_last_val = forked_val
-        self.forked_length = self.__get_length(self.first_b,self.forked_last_val)
+        self.forked_length = self.__get_length(self.first_b, self.forked_last_val)
 
-    #Changes blockchain to keep longest block_chain (chooses either forked value or original blockchain)
+    # Changes blockchain to keep longest block_chain (chooses either forked value or original blockchain)
     # if both chains are the same length: keeps original chain and erases forked value
     def Update_BlockChain(self):
         if self.forked_length > self.total_length:
-            #changing forked chain as original
+            # changing forked chain as original
             self.total_length = self.forked_length
             self.last_b = self.forked_last_val
-        #resetting forked vals
+        # resetting forked vals
         self.__reset_forked_vals()
 
-    #search for block that is less than max_diff away from end and also has same prefix value
-    #returns a list with elements: 1. the Found Valid Block 2. is the block a forked value
-    def __search_for_block_with_hash(self,prev_hash):
+    # search for block that is less than max_diff away from end and also has same prefix value
+    # returns a list with elements: 1. the Found Valid Block 2. is the block a forked value
+    def __search_for_block_with_hash(self, prev_hash):
         # searching for correct prefix in unforked chain
-        primary_search_val = self.__search(BlockChain.max_diff,prev_hash,self.last_b)
-        if primary_search_val != None:
-            return [primary_search_val,False]
-        elif self.forked_last_val != None:
+        primary_search_val = self.__search(BlockChain.max_diff, prev_hash, self.last_b)
+        if primary_search_val is not None:
+            return [primary_search_val, False]
+        elif self.forked_last_val is not None:
             # searching through forked blockchain
-            forked_search_val = self.__search(BlockChain.max_diff,prev_hash,self.forked_last_val)
-            return [forked_search_val,True]
+            forked_search_val = self.__search(BlockChain.max_diff, prev_hash, self.forked_last_val)
+            return [forked_search_val, True]
 
     # searches through linked list starting end value to find prev_hash value
     # looks up to distance of max length from end
-    def __search(self,max_length,prev_hash,last_block):
+    def __search(self, max_length, prev_hash, last_block):
         counter = max_length
         temp_block = last_block
         for i in range(counter):
-            if temp_block == None:
+            if temp_block is None:
                 return None
             elif temp_block.block.footer == prev_hash:
                 return temp_block
-            elif temp_block.prev != None:
+            elif temp_block.prev is not None:
                 temp_block = temp_block.prev
             else:
                 return None
         return None
 
-    #gets the hash of the last block in the block_chain
+    # gets the hash of the last block in the block_chain
     def get_last_hash(self):
-        if self.last_b == None:
+        if self.last_b is None:
             return None
         return self.last_b.block.footer
 
-    #gets the hash of the forked value
+    # gets the hash of the forked value
     def get_last_forked_hash(self):
-        if self.forked_last_val == None:
+        if self.forked_last_val is None:
             return None
         return self.forked_last_val.block.footer
 
     # returns the original and forked blockchain last hashes
     def get_last_hashes(self):
-        return [self.get_last_hash(),self.get_last_forked_hash()]
+        return [self.get_last_hash(), self.get_last_forked_hash()]
