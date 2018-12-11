@@ -681,11 +681,12 @@ class BlockChain:
     def get_last_hashes(self):
         return [self.get_last_hash(), self.get_last_forked_hash()]
 
+    # gets the sources ratings
     def get_source_rating(self, news_source_url):
         curr_b = self.last_b
         rating = 0
         while curr_b is not None:
-            ratings = curr_b.aggregate_block_ratings()
+            ratings = curr_b.block.aggregate_block_ratings()
             if news_source_url in ratings:
                 rating += ratings[news_source_url]
             curr_b = curr_b.prev
