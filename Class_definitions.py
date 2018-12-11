@@ -99,7 +99,7 @@ class Website:
         if isinstance(network,Network):
             self.network =network
             self.network.add_website(self)
-
+"""
 # Website that provides documents to the users, and collects documents from each media source in the network
 class Document_Website(Website):
     def __init__(self,network,documents = []):
@@ -127,6 +127,7 @@ class Document_Website(Website):
             if source in self.topics_dict[topic]:
                 return self.topics_dict[source][topic]
         return None
+"""
 
 # Website that Acts as Certificate Authority providing correct public and private key information
 class Certificate_Website(Website):
@@ -220,6 +221,7 @@ class User:
     #TODO # work out once encryption is finished and Rating Class is defined
     @staticmethod
     def Valid_Rating(rating):
+    	# TODO
         pass
 
     # defines how a user will recieve an object passed in from the network
@@ -234,6 +236,7 @@ class User:
         if isinstance(rating,Rating):
             args = rating.String_to_Sign()
             signature = self.__private_key
+            # TODO
 
 class Miner(User):
     # average time (secs) for hash
@@ -307,16 +310,16 @@ class Media_Source:
 
         if url == None:
             self.url = self.__generate_URL()
-
+"""
         if all(map(lambda doc: isinstance(doc,Document),document_lst)):
             self.document_lst = document_lst
         else:
-            self.document_lst = []
+            self.document_lst = []"""
         if Media_Source.min_trust<=trustworthiness<=Media_Source.max_trust:
             self.__trustworthiness = trustworthiness
         else:
             self.__trustworthiness = random.randint(Media_Source.min_trust,Media_Source.max_trust)
-
+"""
     #generates a new document that is not Fake news with a probability of Trust/(max_trust-min_trust)
     def make_new_Doc(self):
         r = random.randint(Media_Source.min_trust,Media_Source.max_trust)
@@ -331,7 +334,7 @@ class Media_Source:
             self.network.publish_documents(self.document_lst)
             return True
         return False
-
+"""
     def change_network(self,network):
         self.network = network
 
@@ -339,7 +342,7 @@ class Media_Source:
         if self.name != None:
             return ''.join(["www.",self.name,".com"])
         return None
-
+"""
 # defines a news article/document
 class Document:
     def __init__(self,Is_Fake_news, source,Title = None,topic = None):
@@ -347,7 +350,7 @@ class Document:
         self.Title = Title
         self.topic = topic
         self.source = source
-
+"""
 
 #Items to be placed on the blockchain
 class Block_Item:
@@ -377,6 +380,9 @@ class Rating(Block_Item):
         args = [self.MAC_Add, str(self.IP_Add), self.media_source_url, str(self.isFakeNews)]
         return ''.join(args)
 
+    def item_type(self):
+    	return "rating"
+
     def toString(self):
         args = [self.MAC_Add,str(self.IP_Add),self.media_source_url,str(self.isFakeNews),
                 self.hashed_signature]
@@ -404,6 +410,9 @@ class Transaction(Block_Item):
                 str(self.reciever_IP_Address),str(self.reciever_MAC_ADDRESS),
                 self.transact_amnt,self.hashed_signature]
         return ''.join(args)
+
+    def item_type(self):
+    	return "transaction"
 
     # Returns a String of relevant information for a user to sign with their private key
     def toString_to_Sign(self):
@@ -461,6 +470,21 @@ class Block:
                     first = i
                 self.block_items[i-first] = item
 
+    def aggregate_block_ratings(self):
+    	ratings = {}
+    	for item in self.block_items:
+    		if item.item_type() == "rating":
+    			val = 0
+    			if item.isFakeNews:
+    				val = -1
+    			else:
+    				val = 1
+    			if item.media_source_url in ratings:
+    				ratings[item.media_source_url] += val
+    			else:
+    				ratings[item.media_source_url] = val
+    	return ratings
+
     #getting the string representation of all the ratings and accumulating them onto a string
     def __accumulate_strings_of_block_items(self):
         str_lst = []
@@ -502,6 +526,16 @@ class BlockChain:
         self.forked_b = None
         self.forked_length = 0
         self.forked_last_val = None
+
+    def get_source_rating(self,news_source_url):
+    	curr_b = self.last_b
+    	rating = 0
+    	while curr_b is not None:
+    		ratings = curr_b.aggregate_block_ratings()
+    		if news_source_url in ratings:
+    			rating += ratings[news_source_url]
+    		curr_b = curr_b.prev
+    	return rating
 
     # gets length by working backwards from last to first
     def __get_length(self,first,last):
