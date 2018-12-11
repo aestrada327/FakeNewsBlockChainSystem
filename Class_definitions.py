@@ -38,7 +38,6 @@ class Network:
             if isinstance(user,Ranker):
                 self.rankers.append(user)
 
-
     #add users to the network
     def add_users(self,user_lst):
         if all(map(lambda user: isinstance(user,User),user_lst)):
@@ -475,6 +474,21 @@ class Block:
         hasher.update(''.join(hashvals))
         return hasher.hexdigest()
 
+    def aggregate_block_ratings(self):
+        ratings = {}
+        for item in self.block_items:
+            if item.item_type() == "rating":
+                val = 0
+                if item.isFakeNews:
+                    val = -1
+                else:
+                    val = 1
+                if item.media_source_url in ratings:
+                    ratings[item.media_source_url] += val
+                else:
+                    ratings[item.media_source_url] = val
+        return ratings
+
 # a Doubly Linked list of Block classes
 class Block_Node:
     def __init__(self,block,prev = None,nxt = None,forked = None):
@@ -666,3 +680,13 @@ class BlockChain:
     # returns the original and forked blockchain last hashes
     def get_last_hashes(self):
         return [self.get_last_hash(), self.get_last_forked_hash()]
+
+    def get_source_rating(self, news_source_url):
+        curr_b = self.last_b
+        rating = 0
+        while curr_b is not None:
+            ratings = curr_b.aggregate_block_ratings()
+            if news_source_url in ratings:
+                rating += ratings[news_source_url]
+            curr_b = curr_b.prev
+        return rating
