@@ -475,17 +475,18 @@ class Block:
         hasher.update(''.join(hashvals))
         return hasher.hexdigest()
 
-    def aggregate_block_ratings(self):
+    def aggregate_block_ratings(self, users):
         ratings = {}
         for item in self.block_items:
             if item.item_type() == "rating":
-                val = 1
-                if item.isFakeNews:
-                    val = -1
-                if item.media_source_url in ratings:
-                    ratings[item.media_source_url] += val
-                else:
-                    ratings[item.media_source_url] = val
+            	if users[item.email] >= 0 or item.email not in users:
+	                val = 1
+	                if item.isFakeNews:
+	                    val = -1
+	                if item.media_source_url in ratings:
+	                    ratings[item.media_source_url] += val
+	                else:
+	                    ratings[item.media_source_url] = val
         return ratings
 
     def ratings_by_user(self):
@@ -707,12 +708,12 @@ class BlockChain:
         return rating
 
     # returns dict of {news_source: 1 or 0}
-    def get_all_ratings(self):
+    def get_all_ratings(self, users):
     	curr_b = self.last_b
     	all_ratings = {}
     	binary_ratings = {}
     	while curr_b is not None:
-    		curr_ratings = curr_b.block.aggregate_block_ratings()
+    		curr_ratings = curr_b.block.aggregate_block_ratings(users)
     		all_ratings = Counter(all_ratings) + Counter(curr_ratings)
     		curr_b = curr_b.prev
     	# 1 if real, 0 if fake
