@@ -1,6 +1,7 @@
 import random
 import time
 from hashlib import sha256
+from collections import Counter
 import bisect
 from os import chmod
 from Crypto.PublicKey import RSA
@@ -691,3 +692,32 @@ class BlockChain:
                 rating += ratings[news_source_url]
             curr_b = curr_b.prev
         return rating
+
+    def get_all_ratings(self):
+    	curr_b = self.last_b
+    	all_ratings = {}
+    	binary_ratings = {}
+    	while curr_b is not None:
+    		curr_ratings = curr_b.block.aggregate_block_ratings()
+    		all_ratings = Counter(all_ratings) + Counter(curr_ratings)
+    		curr_b = curr_b.prev
+    	# 1 if real, 0 if fake
+    	for source, rating in all_ratings.iteritems():
+    		if rating > 0:
+    			binary_ratings[source] = 1
+    		else:
+    			binary_ratings[source] = 0
+    	return binary_ratings
+
+    def score_users(self):
+    	
+
+
+
+
+
+
+
+
+
+
