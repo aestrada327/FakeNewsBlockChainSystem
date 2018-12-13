@@ -479,16 +479,28 @@ class Block:
         ratings = {}
         for item in self.block_items:
             if item.item_type() == "rating":
-                val = 0
+                val = 1
                 if item.isFakeNews:
                     val = -1
-                else:
-                    val = 1
                 if item.media_source_url in ratings:
                     ratings[item.media_source_url] += val
                 else:
                     ratings[item.media_source_url] = val
         return ratings
+
+    def ratings_by_user(self):
+    	users = {}
+    	for item in self.block_items:
+    		if item.item_type() == "rating":
+    			user = item.email
+    			val = 1
+    			if item.isFakeNews:
+    				val = 0
+    			if user in users:
+    				users[user] = {item.media_source_url : val}
+    			else:
+    				users[user][item.media_source_url] = val
+    	return users
 
 # a Doubly Linked list of Block classes
 class Block_Node:
@@ -693,6 +705,7 @@ class BlockChain:
             curr_b = curr_b.prev
         return rating
 
+    # returns dict of {news_source: 1 or 0}
     def get_all_ratings(self):
     	curr_b = self.last_b
     	all_ratings = {}
@@ -709,8 +722,31 @@ class BlockChain:
     			binary_ratings[source] = 0
     	return binary_ratings
 
-    def score_users(self):
-    	
+    def score_all_users(self):
+    	all_ratings = self.get_all_ratings()
+    	curr_b = self.last_b
+    	users = {}
+    	while curr_b is not None:
+    		curr_ratings = curr_b.block.aggregate_block_ratings()
+    		all_ratings = Counter(all_ratings) + Counter(curr_ratings)
+    		curr_b = curr_b.prev
+    		curr_users = curr_b.block.ratings_by_user()
+    		for user, ratings in curr_users.iteritems():
+    			score = 0
+    			for source, rating in ratings.iteritems():
+    				if all_ratings[source] == ratings[source]:
+    					score += 1
+    				else:
+    					score -= 1
+    			if user in users:
+    				users[user] += score
+    			else:
+    				users[user] = score
+    	return users
+
+
+
+
 
 
 
