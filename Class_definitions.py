@@ -529,6 +529,7 @@ class BlockChain:
         self.forked_b = None
         self.forked_length = 0
         self.forked_last_val = None
+        self.users = {}
 
     # gets length by working backwards from last to first
     def __get_length(self,first,last):
@@ -742,6 +743,7 @@ class BlockChain:
     				users[user] += score
     			else:
     				users[user] = score
+    	self.users = users
     	return users
 
 
