@@ -1,6 +1,7 @@
 from Class_definitions import Ranker,Network,Miner,Block,Block_Item,BlockChain,User,Media_Source
 from Class_definitions import Document, Rating, Transaction, Block_Node, Website, Miner_Ranker
 import random
+from matplotlib import pyplot as plt
 
 # Parameter Instantiation
 num_rankers= 1000
@@ -48,14 +49,35 @@ def Create_Num_Media_Sources(num_sources,network):
     network.add_mediasources(sources)
     return sources
 
-def Collect_Data(rankers,miners):
-    pass
+def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time_i):
+    # Getting a random ranker
+    r = random.randint(0,len(rankers))
+    ranker = rankers[r]
 
-def Plot_Data(data):
-    pass
+    # Getting the average accuracy
+    user_dict = ranker.blockchain.users
+    MS_to_rating = ranker.blockchain.get_all_ratings(user_dict)
+    acc_ratings = 0
+    for source in media_sources:
+        url = source.url
+        if url in MS_to_rating:
+            if MS_to_rating[url] != source.isfakenews:
+                acc_ratings += 1
+    aggregate_acc[time_i] += acc_ratings/len(media_sources)
+
+    #TODO Get average money per user
+    return aggregate_acc
+
+def Plot_Data(accuracy,num_iterations):
+    iterations = range(1,num_iterations+1)
+    plt.plot(accuracy,iterations,color = 'green', marker = 'o', linestyle = 'solid')
+    plt.title("Average Accuracy per iteration of blockchain")
+    plt.ylabel("Average Accuracy")
+    plt.show()
+
 
 # Simulate One Hash interval
-def Simulate_One_Hash_Interval(ranker_lst,miner_lst):
+def simulate_One_Hash_Interval(ranker_lst,miner_lst):
     # Get One Ranker to Rank Per Time Interval
     for i in range(Time_to_mine_block):
         r = random.randint(0,len(ranker_lst))
@@ -73,18 +95,26 @@ def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
     rankers = Create_Num_Rankers(num_rankers,network)
     miners = Create_Num_Miners(num_miners,network)
     sources = Create_Num_Media_Sources(num_media_sources,network)
-    data = []
+
+    #aggregate values for accuracy and
+    acc = [0] * num_hashes
+    avg_money = [0] * num_hashes
 
     # Run Num_Hash Intervals
     for i in range(num_hashes):
-        Simulate_One_Hash_Interval(rankers,miners)
-        ndata = Collect_Data(rankers,miners)
-        data.append(ndata)
+        simulate_One_Hash_Interval(rankers,miners)
+        acc = Collect_Data(rankers,miners,sources,acc,avg_money,i)
 
-    # Plotting the Data for the simulation
-    Plot_Data(data)
+    return acc
 
 # Doing Num Simulations
 def main_function():
+    agg_acc = [0]*num_iterations
     for i in range(num_simulations):
-        simulate_num_intervals(num_iterations,num_rankers,num_miners,num_media_sources)
+        acc = simulate_num_intervals(num_iterations,num_rankers,num_miners,num_media_sources)
+        agg_acc = [x + y for x, y in zip(agg_acc, acc)]
+    agg_acc = map(lambda x: x/num_simulations, agg_acc)
+
+    Plot_Data(agg_acc)
+
+main_function()

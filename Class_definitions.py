@@ -883,6 +883,7 @@ class BlockChain:
         pass
 
     def get_sources_to_MS(self):
+        all_ratings = self.get_all_ratings(self.users)
         curr_b = self.last_b
         users = {}
         while curr_b is not None:
