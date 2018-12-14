@@ -244,7 +244,22 @@ class User:
 
     # Updates the Blockchain Values
     def update_block_chain_dep_vals(self):
-        pass
+        self.update_invalid_users()
+        self.update_users_to_MS()
+
+    def update_invalid_users(self):
+        self.blockchain.score_all_users()
+        user_to_rep = self.blockchain.users
+        invalid_users = {}
+        for user,rep in user_to_rep.iteritems():
+            if rep < 0:
+                invalid_users[user] = True
+        self.invalid_emails = invalid_users
+
+    #updates the users dictionary of which users have already ranked a certain media source
+    def update_users_to_MS(self):
+        s_to_MS = self.blockchain.get_sources_to_MS()
+        self.emails_to_MS = s_to_MS
 
     # checks to see if valid block to add to blockchain
     def Valid_Block(self,block,blockchain):
@@ -587,30 +602,32 @@ class Block:
     def aggregate_block_ratings(self, users):
         ratings = {}
         for item in self.block_items:
-            if item.item_type() == "rating":
+            #if item.item_type() == "rating":
+            if isinstance(item,Rating):
                 if users[item.email] >= 0 or item.email not in users:
                     val = 1
                     if item.isFakeNews:
                         val = -1
-	                if item.media_source_url in ratings:
-	                    ratings[item.media_source_url] += val
-	                else:
-	                    ratings[item.media_source_url] = val
+                    if item.media_source_url in ratings:
+                        ratings[item.media_source_url] += val
+                    else:
+                        ratings[item.media_source_url] = val
         return ratings
 
     def ratings_by_user(self):
-    	users = {}
-    	for item in self.block_items:
-    		if item.item_type() == "rating":
-    			user = item.email
-    			val = 1
-    			if item.isFakeNews:
-    				val = 0
-    			if user in users:
-    				users[user] = {item.media_source_url : val}
-    			else:
-    				users[user][item.media_source_url] = val
-    	return users
+        users = {}
+        for item in self.block_items:
+            #if item.item_type() == "rating":
+            if isinstance(item,Rating):
+                user = item.email
+                val = 1
+                if item.isFakeNews:
+                    val = 0
+                if user in users:
+                    users[user] = {item.media_source_url : val}
+                else:
+                    users[user][item.media_source_url] = val
+        return users
 
 # a Doubly Linked list of Block classes
 class Block_Node:
@@ -641,6 +658,7 @@ class BlockChain:
         self.forked_last_val = None
         #scores of the users
         self.users = {}
+        self.users_money = {}
 
     # gets length by working backwards from last to first
     def __get_length(self,first,last):
@@ -858,4 +876,26 @@ class BlockChain:
                 else:
                     users[user] = score
         self.users = users
+        return users
+
+    #TODO: accumulates the amount of money each user has
+    def get_money_of_all_users(self):
+        pass
+
+    def get_sources_to_MS(self):
+        curr_b = self.last_b
+        users = {}
+        while curr_b is not None:
+            curr_ratings = curr_b.block.aggregate_block_ratings()
+            all_ratings = Counter(all_ratings) + Counter(curr_ratings)
+            curr_b = curr_b.prev
+            curr_users = curr_b.block.ratings_by_user()
+            for user, ratings in curr_users.iteritems():
+                source_lst = []
+                for source, rating in ratings.iteritems():
+                    source_lst.append(source)
+                if user in users:
+                    users[user] += source_lst
+                else:
+                    users[user] = source_lst
         return users

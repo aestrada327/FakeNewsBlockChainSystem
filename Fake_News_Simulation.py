@@ -17,6 +17,10 @@ num_simulations = 1000
 def Create_Num_User_with_ratio(num_users,ratio_of_good_bad_people):
     pass
 
+# Create Media Source with Ratio
+def Create_Num_Media_source_with_ratio(num_sources,ratio_of_good_bad):
+    pass
+
 # Create Num Rankers and adds them to the network
 def Create_Num_Rankers(num_rankers,network):
     rankers = []
