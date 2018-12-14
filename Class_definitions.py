@@ -242,10 +242,14 @@ class User:
     #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
         if self.Valid_Block(block,self.blockchain):
+#            print("Recieved Block")
+#            sys.stdout.flush()
             #TODO Needs to Add Block Appropriately
             self.blockchain.add_block_end(block)
             self.update_block_chain_dep_vals()
         else:
+            print("Not Recieving Block")
+            sys.stdout.flush()
             return False
         return True
 
@@ -366,7 +370,7 @@ class Miner(User):
             self.blockchain = BlockChain(new_node,new_node)
 
     def send_block_to_users(self):
-        self.network.send_block(self.__block,self)
+        self.network.send_block(self,self.__block)
 
     def recieve_rating(self,rating):
         if isinstance(rating,Rating):
@@ -552,7 +556,7 @@ class Rating(Block_Item):
 
     def toString(self):
         args = [self.email, self.media_source_url, str(self.is_fake_news)]
-        return ''.join(args)
+        return ' '.join(args)
 
 #Transaction items to be placed on the block chain
 class Transaction(Block_Item):
@@ -686,7 +690,9 @@ class Block:
         ledger = []
         for item in self.block_items:
             ledger.append(item.toString())
-        return ''.join(ledger)
+        if len(ledger) == 1:
+            return ledger[0] + "\n"
+        return '\n'.join(ledger)
 
 # a Doubly Linked list of Block classes
 class Block_Node:
@@ -985,4 +991,6 @@ class BlockChain:
         ledger = []
         while curr_b is not None and counter < BlockChain.max_length:
             ledger.append(curr_b.toString())
+            curr_b = curr_b.nxt
+            counter += 1
         return ''.join(ledger)

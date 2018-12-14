@@ -81,7 +81,9 @@ def Print_Ledger(rankers):
     r = random.randint(0,len(rankers)-1)
     rand_ranker = rankers[r]
     print "start of Ledger"
+    sys.stdout.flush()
     print rand_ranker.get_Ledger()
+    sys.stdout.flush()
     print "end of Ledger"
     sys.stdout.flush()
 
@@ -120,11 +122,12 @@ def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
 
     # Run Num_Hash Intervals
     for i in range(num_hashes):
+        print i+1
         simulate_One_Hash_Interval(rankers,miners)
         acc = Collect_Data(rankers,miners,sources,acc,avg_money,i)
 
     #getting Ledger information
-    Print_Ledger(miners)
+    Print_Ledger(rankers)
 
     return acc
 
@@ -133,7 +136,7 @@ def main_function():
     agg_acc = [0]*num_iterations
     for i in range(num_simulations):
         #printing simulation
-        print "starting simulation {}".format(i)
+        print "starting simulation {}".format(i+1)
         sys.stdout.flush()
 
         acc = simulate_num_intervals(num_iterations,num_rankers,num_miners,num_media_sources)
