@@ -58,7 +58,15 @@ def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time
 
     # Getting the average accuracy
     user_dict = ranker.blockchain.users
+
+    # printing the ledger of selected ranker
+    print "Current Ledger"
+    print ranker.get_Ledger()
+
     MS_to_rating = ranker.blockchain.get_all_ratings(user_dict)
+    print "All the Ratings"
+    print MS_to_rating
+
     acc_ratings = 0
     for source in media_sources:
         url = source.url
@@ -66,6 +74,8 @@ def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time
             if MS_to_rating[url] != source.isfakenews:
                 acc_ratings += 1
     aggregate_acc[time_i] += acc_ratings/len(media_sources)
+    print "ACCURACY:"
+    print aggregate_acc
 
     #TODO Get average money per user
     return aggregate_acc
@@ -108,7 +118,7 @@ def simulate_One_Hash_Interval(ranker_lst,miner_lst):
     #makes all the miners let go of previous block they were working on
     reinitialize_all_miners(miner_lst)
 
-
+# Simulate Code
 def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
     network = Network()
     # Rankers and Miners

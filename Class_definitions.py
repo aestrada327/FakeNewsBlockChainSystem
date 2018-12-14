@@ -275,16 +275,23 @@ class User:
     # checks to see if valid block to add to blockchain
     def Valid_Block(self,block,blockchain):
         return True
+        if not isinstance(blockchain,BlockChain):
+            print "Not BlockChain"
+            sys.stdout.flush()
+        if not isinstance(block,Block):
+            print "Not Block"
+            sys.stdout.flush()
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
-            if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.block_items):
+            #if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.block_items):
+            if self.Valid_Ratings(block.block_items):
                 return True
         return False
 
     # checks if the ratings in a block list are correctly defined
     def Valid_Ratings(self,rating_lst):
         return True
-        return all(map(lambda rating: self.Valid_Rating(rating), rating_lst))
+#        return all(map(lambda rating: self.Valid_Rating(rating), rating_lst))
 
     # checks if the user doesn't have a negative reputation
     # and if the user hasn't ranked the news_source before
@@ -397,7 +404,7 @@ class Miner(User):
 #            sys.stdout.flush()
             self.__block.add_block_items([rating])
         else:
-            print "inValid Block"
+            print "inValid Rating"
             sys.stdout.flush()
 
     def add_ratings_to_block(self,ratings):
