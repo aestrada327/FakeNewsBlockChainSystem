@@ -81,12 +81,12 @@ def Plot_Data(accuracy,num_iterations):
 def simulate_One_Hash_Interval(ranker_lst,miner_lst):
     # Get One Ranker to Rank Per Time Interval
     for i in range(Time_to_mine_block):
-        r = random.randint(0,len(ranker_lst))
+        r = random.randint(0,len(ranker_lst) -1)
         rand_ranker = ranker_lst[r]
         rand_ranker.run()
 
     # Choose One Random Miner to Mine the next Block
-    r = random.randint(0,len(miner_lst))
+    r = random.randint(0,len(miner_lst)-1)
     rand_miner = miner_lst[r]
     rand_miner.run()
 
@@ -112,10 +112,11 @@ def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
 def main_function():
     agg_acc = [0]*num_iterations
     for i in range(num_simulations):
+        print "starting simulation "
         acc = simulate_num_intervals(num_iterations,num_rankers,num_miners,num_media_sources)
         agg_acc = [x + y for x, y in zip(agg_acc, acc)]
     agg_acc = map(lambda x: x/num_simulations, agg_acc)
 
-    Plot_Data(agg_acc)
+    Plot_Data(agg_acc,num_iterations)
 
 main_function()

@@ -195,14 +195,17 @@ class User:
 
     MAC_ADDRESS_LENGTH = 12
 
-    def __init__(self,email,network,private_key = None,public_key = None,money = 0, blockchain = BlockChain(None,None), mac_address = None):
+    def __init__(self,email,network,private_key = None,public_key = None,money = 0, blockchain = None, mac_address = None):
         # adding self to the network
         self.network = network
         network.add_users([self])
-
-        self.money = money
-        self.blockchain = blockchain
         self.email = email
+        self.money = money
+
+        if blockchain is not None:
+            self.blockchain = blockchain
+        else:
+            self.blockchain = BlockChain(None,None)
 
         # Dictionary of emails of people who have previously gotten a negative score
         self.invalid_emails = {}
@@ -240,7 +243,6 @@ class User:
             self.blockchain.add(block)
             self.update_block_chain_dep_vals()
         else:
-            print "Block Not Recieved"
             return False
         return True
 
@@ -269,7 +271,6 @@ class User:
             #ensures that the current block has the previous hash
             if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.block_items):
                 return True
-        print "invalid Block"
         return False
 
     # checks if the ratings in a block list are correctly defined
@@ -322,7 +323,7 @@ class Miner(User):
     max_nonce_val = sys.maxsize
     start_prefix_val = 1
 
-    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = BlockChain(None,None),ratings = []):
+    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = None,ratings = []):
         User.__init__(self,email,network,private_key,public_key,money,blockchain)
 
         # creating empty Block with previous hash
@@ -347,7 +348,7 @@ class Miner(User):
 
     def add_block_to_blockchain(self,block):
         if self.blockchain is not None:
-            self.blockchain.add_block_to_end(block)
+            self.blockchain.add_block_end(block)
         else:
             new_node = Block_Node(block)
             self.blockchain = BlockChain(new_node,new_node)
@@ -386,7 +387,7 @@ class Ranker(User):
     # ranking accuracy of users [0,1]
     ranking_acc = .7
 
-    def __init__(self,email,network,private_key=None,public_key=None,doc_list = [],money = 0, blockchain = BlockChain(None,None)):
+    def __init__(self,email,network,private_key=None,public_key=None,doc_list = [],money = 0, blockchain = None):
         User.__init__(self,email,network,private_key,public_key,money, blockchain)
         self.visited_MS_urls = {}
 
@@ -657,7 +658,7 @@ class Block_Node:
     def change_forked(self,forked_val):
         self.forked = forked_val
 
-# Block Chain that keeps track of a Block_Nodes to enable easy forking abilities
+# Block Chain that keeps track of Block_Nodes to enable easy forking abilities
 class BlockChain:
     # class variable
     # maximum difference for two block chains to be different in length until one is dropped
