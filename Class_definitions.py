@@ -202,6 +202,7 @@ class User:
 
         # Dictionary of emails of people who have previously gotten a negative score
         self.invalid_emails = {}
+        self.emails_to_MS = {}
 
         # generating MAC Address
         if mac_address is not None:
@@ -241,7 +242,7 @@ class User:
     def Valid_Block(self,block,blockchain):
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
-            if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.rating_lst):
+            if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.block_items):
                 return True
         return False
 
@@ -252,7 +253,26 @@ class User:
     # checks if the user doesn't have a negative reputation
     # and if the user hasn't ranked the news_source before
     def Valid_Rating(self,rating):
-        return rating.email not in self.invalid_emails
+        if rating.email in self.invalid_emails:
+            return False
+        elif self.UserAlreadyRatedMS(rating):
+            return False
+        else:
+            return True
+
+    #Checks to see if the user has already rated the media source
+    def UserAlreadyRatedMS(self,rating):
+        MS_url = rating.media_source_url
+        user_email = rating.email
+
+        # checking the stored data read from the Block_Chain
+        if user_email not in self.emails_to_MS:
+            return False
+
+        for url in self.emails_to_MS[user_email]:
+            if MS_url == url:
+                return True
+        return False
 
     # defines how a user will recieve an object passed in from the network
     def recieve(self,object):
@@ -264,10 +284,11 @@ class User:
         self.network.publish_public_key(self.publish_public_key(),self.MAC_ADDRESS,self.IP_Address)
 
     # Signs a rating
+    #TODO
     def sign_rating(self,rating):
         if isinstance(rating,Rating):
             args = rating.String_to_Sign()
-            signature = self.__private_key
+            #signature = self.__private_key
 
 class Miner(User):
     # average time (secs) for hash
@@ -360,7 +381,7 @@ class Ranker(User):
     def publish_rankings(self,rankings):
         self.network.publish_rankings(rankings)
 
-# incase a user is a ranker and a miner
+# in case a user is a ranker and a miner
 class Miner_Ranker(User,Miner,Ranker):
     def __init__(self):
         pass
