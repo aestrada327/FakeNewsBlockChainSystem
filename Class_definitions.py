@@ -384,6 +384,17 @@ class Ranker(User):
     def publish_rankings(self,rankings):
         self.network.publish_rankings(rankings)
 
+class Evil_Ranker(Ranker):
+    # ranks the opposite of what news sources media_source Ranking_Acc% of time
+    def give_ranking(self,media_source):
+        r = random.random()
+        #accurate rating
+        if r <= Ranker.ranking_acc:
+            isMSfake = not media_source.isfakenews
+        else:
+            isMSfake =  media_source.isfakenews
+        return Rating(self.email, media_source.url,isMSfake)
+
 # in case a user is a ranker and a miner
 class Miner_Ranker(User,Miner,Ranker):
     def __init__(self):
