@@ -4,16 +4,16 @@ import random
 from matplotlib import pyplot as plt
 
 # Parameter Instantiation
-num_rankers= 1000
-num_miners = 100
-num_media_sources = 100
+num_rankers= 10
+num_miners = 10
+num_media_sources = 10
 Coin_Worth = 1
 Num_Block_Mined = 1
 Time_to_mine_block = 1
 ratio_of_good_bad_people = .5
 
-num_iterations = 1000
-num_simulations = 1000
+num_iterations = 10
+num_simulations = 10
 # Create Num User With Ratio
 def Create_Num_User_with_ratio(num_users,ratio_of_good_bad_people):
     pass
@@ -46,6 +46,7 @@ def Create_Num_Media_Sources(num_sources,network):
     for i in range(num_sources):
         n_name = ''.join(["MediaSource",str(i+1)])
         n_source = Media_Source(network,n_name)
+        sources.append(n_source)
     network.add_mediasources(sources)
     return sources
 

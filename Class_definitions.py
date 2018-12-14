@@ -43,7 +43,7 @@ class Network:
 
     def add_mediasources(self,media_source_lst):
         if all(map(lambda source: isinstance(source,Media_Source),media_source_lst)):
-            self.media_sources.append(media_source_lst)
+            self.media_sources += media_source_lst
         else:
             for source in media_source_lst:
                 if isinstance(source,Media_Source):
@@ -54,11 +54,12 @@ class Network:
         # Checking if visited_url has been found
         if len(visited_url_dict) > len(self.media_sources):
             return None
-
         # finding new media source
         rand = random.randint(0,len(self.media_sources) - 1)
-        while self.media_sources[rand].url in visited_url_dict:
+        rand_MS = self.media_sources[rand]
+        while rand_MS.url in visited_url_dict:
             rand = random.randint(0,len(self.media_sources) - 1)
+            rand_MS = self.media_sources[rand]
         return self.media_sources[rand]
 
     #add users to the network
@@ -133,7 +134,7 @@ class Website:
 # Website that provides documents to the users, and collects documents from each media source in the network
 class Document_Website(Website):
     def __init__(self,network,documents = []):
-        super(Document_Website,self).__init__(network)
+        Website.__init__(self,network)
         self.topics_dict = {}
         self.add_documents(documents)
 
@@ -161,7 +162,7 @@ class Document_Website(Website):
 # Website that Acts as Certificate Authority providing correct public and private key information
 class Certificate_Website(Website):
     def __init__(self,network):
-        super(Certificate_Website,self).__init__(network)
+        Website.__init__(self,network)
         self.public_keys = []
         self.certificates = {}
 
@@ -213,7 +214,7 @@ class User:
         else:
             self.MAC_ADDRESS = self.__generate_MAC_ADDRESS()
 
-        self.IP_Address = network.get_IP_address()
+        self.IP_Address = network.get_IP_Address(self.MAC_ADDRESS)
 
         #generating private/public key pairs
         if private_key is None or public_key is None:
@@ -317,16 +318,23 @@ class Miner(User):
     # average time (secs) for hash
     avg_time_hash = 60
     max_nonce_val = sys.maxsize
+    start_prefix_val = 1
+
     def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = None,ratings = []):
-        super(Miner,self).__init__(email,private_key,public_key,network,money, blockchain)
+        User.__init__(self,email,network,private_key,public_key,money,blockchain)
+
         # creating empty Block with previous hash
-        self.__block = Block(self.blockchain.get_last_hash(),self.email)
+        if blockchain != None:
+            self.__block = Block(self.blockchain.get_last_hash(),self.email)
+        else:
+            self.__block = Block(Miner.start_prefix_val,self.email)
+
         self.mined_hash = None
 
     #Main Call from Simulation Code
     def run(self):
         self.Mine_Hash_Val()
-        self.add_block_to_block_chain(self.__block)
+        self.add_block_to_blockchain(self.__block)
         self.send_block_to_users()
 
     #searches for correct hash value
@@ -373,7 +381,7 @@ class Ranker(User):
     ranking_acc = .7
 
     def __init__(self,email,network,private_key=None,public_key=None,doc_list = [],money = 0, blockchain = None):
-        super(Ranker,self).__init__(self,email,network,private_key,public_key,money, blockchain)
+        User.__init__(self,email,network,private_key,public_key,money, blockchain)
         self.visited_MS_urls = {}
 
     # Main Function run by the simulation code
@@ -386,7 +394,7 @@ class Ranker(User):
         self.publish_rankings([ranking])
 
     def get_new_media_source(self):
-        new_source = self.network.get_new_source(self.visited_MS_dict)
+        new_source = self.network.get_new_source(self.visited_MS_urls)
         if new_source != None:
             self.visited_MS_urls[new_source.url] = True
             return new_source
@@ -402,7 +410,7 @@ class Ranker(User):
         return Rating(self.email, media_source.url,isMSfake)
 
     def publish_rankings(self,rankings):
-        self.network.publish_rankings(rankings)
+        self.network.send_rating_to_miners(self,rankings)
 
 class Evil_Ranker(Ranker):
     # ranks the opposite of what news sources media_source Ranking_Acc% of time
@@ -501,7 +509,7 @@ class Rating(Block_Item):
 
         #Rating that defines if media is fake or not
         self.isFakeNews = is_fake_news
-        super(Rating, self).__init__(hashed_signature)
+        Block_Item.__init__(self,hashed_signature)
 
     def String_to_Sign(self):
         args = [self.email, self.media_source_url, str(self.is_fake_news)]
@@ -523,7 +531,7 @@ class Transaction(Block_Item):
             self.reciever_email = None
 
         self.transact_amnt = transact_amnt
-        super(Transaction,self).__init__(hashed_signature)
+        Block_Item.__init__(self,hashed_signature)
 
     def toString(self):
         args = [str(self.sender_email),str(self.reciever_email),
@@ -595,7 +603,7 @@ class Block:
     #hashes with the sha256 the nonce value, the previous hash, and the transactions in the block respectively
     def __generatehashval(self):
         hasher = sha256()
-        hashvals = [str(self.nonce),self.prefix,self.__accumulate_strings_of_block_items()]
+        hashvals = [str(self.nonce),str(self.prefix),self.__accumulate_strings_of_block_items()]
         hasher.update(''.join(hashvals))
         return hasher.hexdigest()
 
