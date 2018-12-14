@@ -1,7 +1,8 @@
-import Class_definitions
+from Class_definitions import Ranker,Network,Miner,Block,Block_Item,BlockChain,User,Media_Source
+from Class_definitions import Document, Rating, Transaction, Block_Node, Website, Miner_Ranker
 import random
 
-# Parameter Instanciation
+# Parameter Instantiation
 num_Users = 1000
 Coin_Worth = 1
 Num_Block_Mined = 1
@@ -12,14 +13,22 @@ ratio_of_good_bad_people = .5
 def Create_Num_User_with_ratio(num_users,ratio_of_good_bad_people):
     pass
 
-#Create Num Media Sources
+#Create Num Rankers and adds them to the network
+def Create_Num_Rankers(num_rankers,network):
+    rankers = []
+    for i in range(num_rankers):
+        n_email = ''.join(["ranker",str(i+1),"@gmail.com"])
+        n_ranker = Ranker(n_email,network)
+        rankers.append(n_ranker)
+    return rankers
 
-def Create_Num_Rankers(num_users):
-    pass
-
-def Create_Num_Miners(num_miners):
-    pass
-
+def Create_Num_Miners(num_miners,network):
+    miners = []
+    for i in range(num_miners):
+        n_email = ''.join(["miner", str(i+1), "@gmail.com"])
+        n_miner = Miner(n_email,network)
+        miners.append(n_miner)
+    return miners
 
 def Collect_Data(rankers,miners):
     pass

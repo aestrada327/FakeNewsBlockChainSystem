@@ -294,7 +294,7 @@ class Miner(User):
     # average time (secs) for hash
     avg_time_hash = 60
     max_nonce_val = sys.maxsize
-    def __init__(self,email,private_key,public_key,network,money = 0, blockchain = None,ratings = []):
+    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = None,ratings = []):
         super(Miner,self).__init__(email,private_key,public_key,network,money, blockchain)
         # creating empty Block with previous hash
         self.__block = Block(self.blockchain.get_last_hash(),self.email)
@@ -349,7 +349,7 @@ class Ranker(User):
     # ranking accuracy of users [0,1]
     ranking_acc = .7
 
-    def __init__(self,email,network,private_key,public_key,doc_list,money = 0, blockchain = None):
+    def __init__(self,email,network,private_key=None,public_key=None,doc_list = [],money = 0, blockchain = None):
         super(Ranker,self).__init__(self,email,network,private_key,public_key,money, blockchain)
         self.visited_MS_urls = {}
 
