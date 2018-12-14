@@ -200,6 +200,9 @@ class User:
         self.network = network
         self.email = email
 
+        # Dictionary of emails of people who have previously gotten a negative score
+        self.invalid_emails = {}
+
         # generating MAC Address
         if mac_address is not None:
             self.MAC_ADDRESS = mac_address
@@ -228,38 +231,39 @@ class User:
 
     #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
-        if User.Valid_Block(block,self.blockchain):
+        if self.Valid_Block(block,self.blockchain):
             self.blockchain.add(block)
         else:
             return False
         return True
 
     # checks to see if valid block to add to blockchain
-    @staticmethod
-    def Valid_Block(block,blockchain):
+    def Valid_Block(self,block,blockchain):
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
-            if block.prefix == blockchain.get_last_hash() and User.__Valid_Ratings(block.rating_lst):
+            if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.rating_lst):
                 return True
         return False
 
     # checks if the ratings in a block list are correctly defined
-    @staticmethod
-    def Valid_Ratings(rating_lst):
-        return all(map(lambda rating: User.Valid_Rating(rating), rating_lst))
+    def Valid_Ratings(self,rating_lst):
+        return all(map(lambda rating: self.Valid_Rating(rating), rating_lst))
 
-    @staticmethod
-    def Valid_Rating(rating):
-        pass
+    # checks if the user doesn't have a negative reputation
+    # and if the user hasn't ranked the news_source before
+    def Valid_Rating(self,rating):
+        return rating.email not in self.invalid_emails
 
     # defines how a user will recieve an object passed in from the network
     def recieve(self,object):
         if isinstance(object,Block):
             self.recieve_block(object)
 
+    # publish a Public Key
     def publish_public_key(self):
         self.network.publish_public_key(self.publish_public_key(),self.MAC_ADDRESS,self.IP_Address)
 
+    # Signs a rating
     def sign_rating(self,rating):
         if isinstance(rating,Rating):
             args = rating.String_to_Sign()
@@ -272,7 +276,7 @@ class Miner(User):
     def __init__(self,email,private_key,public_key,network,money = 0, blockchain = None,ratings = []):
         super(Miner,self).__init__(email,private_key,public_key,network,money, blockchain)
         # creating empty Block with previous hash
-        self.__block = Block(blockchain.get_last_hash(),self.email)
+        self.__block = Block(self.blockchain.get_last_hash(),self.email)
         self.mined_hash = None
 
     #Main Call from Simulation Code
@@ -287,7 +291,7 @@ class Miner(User):
         self.__block.change_nonce(r)
         self.__block.update_footer()
 
-    def Add_block_to_blockchain(self,block):
+    def add_block_to_blockchain(self,block):
         self.blockchain.add_block_to_end(block)
 
     def send_block_to_users(self):
@@ -298,18 +302,25 @@ class Miner(User):
             self.add_rating_to_block(rating)
 
     def recieve_ratings(self,rating_lst):
-        if all(map(lambda rating: isinstance(rating,Rating) and User.Valid_Rating(rating), rating_lst)):
+        if all(map(lambda rating: isinstance(rating,Rating) and self.Valid_Rating(rating), rating_lst)):
             self.add_ratings_to_block(rating_lst)
         else:
             for rating in rating_lst:
-                if User.Valid_Rating(rating) and isinstance(rating,Rating):
+                if self.Valid_Rating(rating) and isinstance(rating,Rating):
                     self.add_rating_to_block(rating)
 
+    # Reinitializes Block
+    # Use when another miner has found the block
+    def reinitialize_block(self):
+        self.__block = Block(self.blockchain.get_last_hash(),self.email)
+
     def add_rating_to_block(self,rating):
-        self.__block.add_block_items([rating])
+        if self.Valid_Rating(rating):
+            self.__block.add_block_items([rating])
 
     def add_ratings_to_block(self,ratings):
-        self.__block.add_block_items(ratings)
+        if self.Valid_Ratings(ratings):
+            self.__block.add_block_items(ratings)
 
 # users that rank documents
 class Ranker(User):
@@ -371,7 +382,7 @@ class Media_Source:
     min_trust = 0
     max_trust = 10
 
-    def __init__(self,network, name, url = None, document_lst = [],isfakenews):
+    def __init__(self,network, name, url = None, document_lst = [],isfakenews = False):
         self.network = network
         self.name = name
         self.isfakenews = isfakenews
@@ -415,7 +426,6 @@ class Document:
         self.topic = topic
         self.source = source
 
-
 #Items to be placed on the blockchain
 class Block_Item:
     def __init__(self, hashed_signature = None):
@@ -426,7 +436,6 @@ class Block_Item:
 
 #Rating items to be placed on the Block_chain system
 # defines a rating generated by a user for a document
-# TODO # needs encryption method
 class Rating(Block_Item):
     def __init__(self,email, media_source_url, is_fake_news, hashed_signature = None):
         # Markers to identify User
@@ -542,7 +551,7 @@ class Block:
                 if users[item.email] >= 0 or item.email not in users:
                     val = 1
                     if item.isFakeNews:
-	                    val = -1
+                        val = -1
 	                if item.media_source_url in ratings:
 	                    ratings[item.media_source_url] += val
 	                else:
@@ -604,6 +613,7 @@ class BlockChain:
                 counter += 1
         return None
 
+    # Adds Block to the End of the Block_Chain
     def add_block_end(self,block):
         if isinstance(block,Block):
             n_block = Block_Node(block)
@@ -620,6 +630,7 @@ class BlockChain:
             return True
         return False
 
+    # Adds Block to the End of the Forked Block_Chain
     def add_block_end_forked(self, block):
         if isinstance(block,Block):
             n_block = Block_Node(block)
@@ -636,8 +647,8 @@ class BlockChain:
             return True
         return False
 
-    #Adds a block to the block chain ensuring prefix manner, Includes prefix
-    #returns boolean statement stating if block was added to the chain or not
+    # Adds a block to the block chain ensuring prefix manner, Includes prefix
+    # Returns boolean statement stating if block was added to the chain or not
     def add_block_prefix_matching(self, block):
         #ensuring proper data_structure was passed in
         if isinstance(block, Block):
@@ -696,6 +707,7 @@ class BlockChain:
         self.forked_last_val = None
         self.forked_length = 0
 
+    # changes the which value gets forked
     def change_forked_b(self, forked_b, forked_val):
         self.forked_b = forked_b
         self.forked_b.forked = forked_val

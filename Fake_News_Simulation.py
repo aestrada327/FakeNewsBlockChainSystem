@@ -20,6 +20,7 @@ def Create_Num_Rankers(num_users):
 def Create_Num_Miners(num_miners):
     pass
 
+
 def Collect_Data(rankers,miners):
     pass
 
