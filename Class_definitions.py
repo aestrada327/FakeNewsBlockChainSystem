@@ -237,9 +237,14 @@ class User:
     def recieve_block(self,block):
         if self.Valid_Block(block,self.blockchain):
             self.blockchain.add(block)
+            self.update_block_chain_dep_vals()
         else:
             return False
         return True
+
+    # Updates the Blockchain Values
+    def update_block_chain_dep_vals(self):
+        pass
 
     # checks to see if valid block to add to blockchain
     def Valid_Block(self,block,blockchain):
@@ -634,6 +639,7 @@ class BlockChain:
         self.forked_b = None
         self.forked_length = 0
         self.forked_last_val = None
+        #scores of the users
         self.users = {}
 
     # gets length by working backwards from last to first
@@ -832,7 +838,7 @@ class BlockChain:
         return binary_ratings
 
     def score_all_users(self):
-        all_ratings = self.get_all_ratings()
+        all_ratings = self.get_all_ratings(self.users)
         curr_b = self.last_b
         users = {}
         while curr_b is not None:
