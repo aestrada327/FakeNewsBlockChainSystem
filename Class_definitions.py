@@ -445,7 +445,6 @@ class Ranker(User):
     def publish_ranking(self,ranking):
         self.network.send_rating_to_miners(self,ranking)
 
-
 class Evil_Ranker(Ranker):
     # ranks the opposite of what news sources media_source Ranking_Acc% of time
     def give_ranking(self,media_source):

@@ -15,6 +15,10 @@ Percent_Of_GOOD = .7
 
 num_iterations = 10
 num_simulations = 10
+
+def flush():
+    sys.stdout.flush()
+
 # Create Num User With Ratio
 def Create_Num_Rankers_with_ratio(num_rankers,percent_good,network):
     num_good = int(round(percent_good * num_rankers))
@@ -91,6 +95,16 @@ def Plot_Data(accuracy,num_iterations):
     plt.title("Average Accuracy per iteration of blockchain")
     plt.ylabel("Average Accuracy")
     plt.show()
+
+def Plot_Data_Ratio(accuracy,num_iterations):
+    iterations = range(0,num_iterations)
+    iterations = map(lambda i: i*(1.0/num_iterations),iterations)
+    plt.plot(iterations,accuracy,color = 'green', marker = 'o', linestyle = 'solid')
+    plt.title("Average Accuracy vs. Percent of Good Agents")
+    plt.ylabel("Average Accuracy")
+    plt.xlabel("Percent of Good Agents")
+    plt.show()
+
 
 def Print_Ledger(rankers):
     r = random.randint(0,len(rankers)-1)
@@ -170,26 +184,26 @@ def bad_actors_simulation():
 
 def simulate_GB_ratio_change(num_simulations,chain_length,num_miners,num_rankers,num_sources,percent_good):
     agg_acc = []
-    for sim_i in range(num_simulations):
-        network = Network()
-        # Rankers and Miners
-        rankers = Create_Num_Rankers_with_ratio(num_rankers, percent_good, network)
-        miners = Create_Num_Miners(num_miners, network)
-        sources = Create_Num_Media_Sources(num_media_sources, network)
-
+    for sim in range(num_simulations):
+        acc = simulate_num_intervals(chain_length,num_rankers,num_miners,num_media_sources,percent_good)
+        agg_acc.append(acc[-1])
+    return sum(agg_acc)/(float(len(agg_acc)))
 
 def good_bad_ratio_simulation_change(num_intervals):
     chain_length = 10
     num_simulations = 10
     agg_acc = [0] * num_intervals
     num_sources = 10
-    num_rankers = 10
+    num_rankers = 50
     num_miners = 10
 
     # For each ratio of good to bad
     for i in range(num_intervals):
+        print "interval {}".format(i)
+        flush()
         curr_ratio = i*(1.0/num_intervals)
         agg_acc[i] = simulate_GB_ratio_change(num_simulations,chain_length,num_miners,num_rankers,num_sources,curr_ratio)
-    return agg_acc
 
-bad_actors_simulation()
+    Plot_Data_Ratio(agg_acc,num_iterations)
+
+good_bad_ratio_simulation_change(20)
