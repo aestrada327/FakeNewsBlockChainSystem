@@ -674,8 +674,6 @@ class Block:
                             ratings[item.media_source_url] += val
                         else:
                             ratings[item.media_source_url] = val
-
-
         return ratings
 
     def ratings_by_user(self):
@@ -934,12 +932,14 @@ class BlockChain:
         curr_b = self.last_b
         all_ratings = {}
         binary_ratings = {}
+        counter = 0
         while curr_b is not None:
             curr_ratings = curr_b.block.aggregate_block_ratings(users)
             all_ratings = Counter(all_ratings) + Counter(curr_ratings)
             curr_b = curr_b.prev
+            counter += 1
         # 1 if real, 0 if fake
-    	for source, rating in all_ratings.iteritems():
+    	for source, rating in dict(all_ratings).iteritems():
             if rating > 0:
                 binary_ratings[source] = 1
             else:
@@ -951,16 +951,17 @@ class BlockChain:
         curr_b = self.last_b
         users = {}
         while curr_b is not None:
-            curr_ratings = curr_b.block.aggregate_block_ratings(self.users)
-            all_ratings = Counter(all_ratings) + Counter(curr_ratings)
             curr_users = curr_b.block.ratings_by_user()
             for user, ratings in curr_users.iteritems():
                 score = 0
                 for source, rating in ratings.iteritems():
-                    if all_ratings[source] == ratings[source]:
-                        score += 1
+                    if source in all_ratings:
+                        if all_ratings[source] == ratings[source]:
+                            score += 1
+                        else:
+                            score -= 1
                     else:
-                        score -= 1
+                        score += 1
                 if user in users:
                     users[user] += score
                 else:
