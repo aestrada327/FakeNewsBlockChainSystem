@@ -2,6 +2,7 @@ from Class_definitions import Ranker,Network,Miner,Block,Block_Item,BlockChain,U
 from Class_definitions import Document, Rating, Transaction, Block_Node, Website, Miner_Ranker
 import random
 from matplotlib import pyplot as plt
+import sys
 
 # Parameter Instantiation
 num_rankers= 10
@@ -76,6 +77,18 @@ def Plot_Data(accuracy,num_iterations):
     plt.ylabel("Average Accuracy")
     plt.show()
 
+def Print_Ledger(rankers):
+    r = random.randint(0,len(rankers)-1)
+    rand_ranker = rankers[r]
+    print "start of Ledger"
+    print rand_ranker.get_Ledger()
+    print "end of Ledger"
+    sys.stdout.flush()
+
+# reinitializes all the miners
+def reinitialize_all_miners(miners):
+    for miner in miners:
+        miner.reinitialize_block()
 
 # Simulate One Hash interval
 def simulate_One_Hash_Interval(ranker_lst,miner_lst):
@@ -89,6 +102,10 @@ def simulate_One_Hash_Interval(ranker_lst,miner_lst):
     r = random.randint(0,len(miner_lst)-1)
     rand_miner = miner_lst[r]
     rand_miner.run()
+
+    #makes all the miners let go of previous block they were working on
+    reinitialize_all_miners(miner_lst)
+
 
 def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
     network = Network()
@@ -106,17 +123,22 @@ def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
         simulate_One_Hash_Interval(rankers,miners)
         acc = Collect_Data(rankers,miners,sources,acc,avg_money,i)
 
+    #getting Ledger information
+    Print_Ledger(miners)
+
     return acc
 
 # Doing Num Simulations
 def main_function():
     agg_acc = [0]*num_iterations
     for i in range(num_simulations):
-        print "starting simulation "
+        #printing simulation
+        print "starting simulation {}".format(i)
+        sys.stdout.flush()
+
         acc = simulate_num_intervals(num_iterations,num_rankers,num_miners,num_media_sources)
         agg_acc = [x + y for x, y in zip(agg_acc, acc)]
     agg_acc = map(lambda x: x/num_simulations, agg_acc)
-
     Plot_Data(agg_acc,num_iterations)
 
 main_function()

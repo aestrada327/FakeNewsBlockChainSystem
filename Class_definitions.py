@@ -81,6 +81,8 @@ class Network:
     def send_rating_to_miners(self, sender, rating):
         for miner in self.miners:
             if not (miner is sender):
+#                print "recieving rating"
+#                sys.stdout.flush()
                 miner.recieve_rating(rating)
 
     def send_ratings_to_miners(self,sender,ratings):
@@ -240,7 +242,8 @@ class User:
     #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
         if self.Valid_Block(block,self.blockchain):
-            self.blockchain.add(block)
+            #TODO Needs to Add Block Appropriately
+            self.blockchain.add_block_end(block)
             self.update_block_chain_dep_vals()
         else:
             return False
@@ -267,6 +270,7 @@ class User:
 
     # checks to see if valid block to add to blockchain
     def Valid_Block(self,block,blockchain):
+        return True
         if isinstance(block,Block) and isinstance(blockchain,BlockChain):
             #ensures that the current block has the previous hash
             if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.block_items):
@@ -275,11 +279,13 @@ class User:
 
     # checks if the ratings in a block list are correctly defined
     def Valid_Ratings(self,rating_lst):
+        return True
         return all(map(lambda rating: self.Valid_Rating(rating), rating_lst))
 
     # checks if the user doesn't have a negative reputation
     # and if the user hasn't ranked the news_source before
     def Valid_Rating(self,rating):
+        return True
         if rating.email in self.invalid_emails:
             return False
         elif self.UserAlreadyRatedMS(rating):
@@ -310,6 +316,12 @@ class User:
     def publish_public_key(self):
         self.network.publish_public_key(self.publish_public_key(),self.MAC_ADDRESS,self.IP_Address)
 
+    # Getting the ledger
+    def get_Ledger(self):
+        if self.blockchain is not None:
+            return self.blockchain.toString()
+        return None
+
     # Signs a rating
     #TODO
     def sign_rating(self,rating):
@@ -323,7 +335,7 @@ class Miner(User):
     max_nonce_val = sys.maxsize
     start_prefix_val = 1
 
-    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = None,ratings = []):
+    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = None):
         User.__init__(self,email,network,private_key,public_key,money,blockchain)
 
         # creating empty Block with previous hash
@@ -358,6 +370,8 @@ class Miner(User):
 
     def recieve_rating(self,rating):
         if isinstance(rating,Rating):
+#            print "Recieving Rating!"
+#            sys.stdout.flush()
             self.add_rating_to_block(rating)
 
     def recieve_ratings(self,rating_lst):
@@ -375,11 +389,21 @@ class Miner(User):
 
     def add_rating_to_block(self,rating):
         if self.Valid_Rating(rating):
+#            print "Valid Block"
+#            sys.stdout.flush()
             self.__block.add_block_items([rating])
+        else:
+            print "inValid Block"
+            sys.stdout.flush()
 
     def add_ratings_to_block(self,ratings):
         if self.Valid_Ratings(ratings):
+#            print "Valid Block"
+#            sys.stdout.flush()
             self.__block.add_block_items(ratings)
+#        else:
+#            print "InValid Block :("
+#            sys.stdout.flush()
 
 # users that rank documents
 class Ranker(User):
@@ -392,13 +416,16 @@ class Ranker(User):
         self.visited_MS_urls = {}
 
     # Main Function run by the simulation code
+    # ranks a new media source and sends the ranking to all the miners
     def run(self):
         self.rank_new_media_source()
 
     def rank_new_media_source(self):
         new_source = self.get_new_media_source()
         ranking = self.give_ranking(new_source)
-        self.publish_rankings([ranking])
+#        print ranking.toString()
+#        sys.stdout.flush()
+        self.publish_ranking(ranking)
 
     def get_new_media_source(self):
         new_source = self.network.get_new_source(self.visited_MS_urls)
@@ -416,8 +443,9 @@ class Ranker(User):
             isMSfake = not media_source.isfakenews
         return Rating(self.email, media_source.url,isMSfake)
 
-    def publish_rankings(self,rankings):
-        self.network.send_rating_to_miners(self,rankings)
+    def publish_ranking(self,ranking):
+        self.network.send_rating_to_miners(self,ranking)
+
 
 class Evil_Ranker(Ranker):
     # ranks the opposite of what news sources media_source Ranking_Acc% of time
@@ -515,16 +543,15 @@ class Rating(Block_Item):
         self.media_source_url = media_source_url
 
         #Rating that defines if media is fake or not
-        self.isFakeNews = is_fake_news
+        self.is_fake_news = is_fake_news
         Block_Item.__init__(self,hashed_signature)
 
     def String_to_Sign(self):
         args = [self.email, self.media_source_url, str(self.is_fake_news)]
-        return ''.join(args)
+        return ' '.join(args)
 
     def toString(self):
-        args = [self.email, self.media_source_url, str(self.is_fake_news),
-                self.hashed_signature]
+        args = [self.email, self.media_source_url, str(self.is_fake_news)]
         return ''.join(args)
 
 #Transaction items to be placed on the block chain
@@ -619,14 +646,25 @@ class Block:
         for item in self.block_items:
             #if item.item_type() == "rating":
             if isinstance(item,Rating):
-                if users[item.email] >= 0 or item.email not in users:
+                if item.email not in users:
                     val = 1
-                    if item.isFakeNews:
+                    if item.is_fake_news:
                         val = -1
                     if item.media_source_url in ratings:
                         ratings[item.media_source_url] += val
                     else:
                         ratings[item.media_source_url] = val
+                else:
+                    if users[item.email]>=0:
+                        val = 1
+                        if item.is_fake_news:
+                            val = -1
+                        if item.media_source_url in ratings:
+                            ratings[item.media_source_url] += val
+                        else:
+                            ratings[item.media_source_url] = val
+
+
         return ratings
 
     def ratings_by_user(self):
@@ -636,13 +674,19 @@ class Block:
             if isinstance(item,Rating):
                 user = item.email
                 val = 1
-                if item.isFakeNews:
+                if item.is_fake_news:
                     val = 0
-                if user in users:
+                if user not in users:
                     users[user] = {item.media_source_url : val}
                 else:
                     users[user][item.media_source_url] = val
         return users
+
+    def toString(self):
+        ledger = []
+        for item in self.block_items:
+            ledger.append(item.toString())
+        return ''.join(ledger)
 
 # a Doubly Linked list of Block classes
 class Block_Node:
@@ -658,11 +702,17 @@ class Block_Node:
     def change_forked(self,forked_val):
         self.forked = forked_val
 
+    def toString(self):
+        if self.block is not None:
+            return self.block.toString()
+        return None
+
 # Block Chain that keeps track of Block_Nodes to enable easy forking abilities
 class BlockChain:
     # class variable
     # maximum difference for two block chains to be different in length until one is dropped
     max_diff = 5
+    max_length = 100000
 
     def __init__(self,first_b,last_b):
         self.first_b = first_b
@@ -888,9 +938,8 @@ class BlockChain:
         curr_b = self.last_b
         users = {}
         while curr_b is not None:
-            curr_ratings = curr_b.block.aggregate_block_ratings()
+            curr_ratings = curr_b.block.aggregate_block_ratings(self.users)
             all_ratings = Counter(all_ratings) + Counter(curr_ratings)
-            curr_b = curr_b.prev
             curr_users = curr_b.block.ratings_by_user()
             for user, ratings in curr_users.iteritems():
                 score = 0
@@ -903,6 +952,7 @@ class BlockChain:
                     users[user] += score
                 else:
                     users[user] = score
+            curr_b = curr_b.prev
         self.users = users
         return users
 
@@ -915,9 +965,8 @@ class BlockChain:
         curr_b = self.last_b
         users = {}
         while curr_b is not None:
-            curr_ratings = curr_b.block.aggregate_block_ratings()
+            curr_ratings = curr_b.block.aggregate_block_ratings(self.users)
             all_ratings = Counter(all_ratings) + Counter(curr_ratings)
-            curr_b = curr_b.prev
             curr_users = curr_b.block.ratings_by_user()
             for user, ratings in curr_users.iteritems():
                 source_lst = []
@@ -927,4 +976,13 @@ class BlockChain:
                     users[user] += source_lst
                 else:
                     users[user] = source_lst
+            curr_b = curr_b.prev
         return users
+
+    def toString(self):
+        curr_b = self.first_b
+        counter = 0
+        ledger = []
+        while curr_b is not None and counter < BlockChain.max_length:
+            ledger.append(curr_b.toString())
+        return ''.join(ledger)
