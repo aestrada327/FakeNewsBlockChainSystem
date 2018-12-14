@@ -66,14 +66,15 @@ def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time
     MS_to_rating = ranker.blockchain.get_all_ratings(user_dict)
     print "All the Ratings"
     print MS_to_rating
-
     acc_ratings = 0
     for source in media_sources:
         url = source.url
         if url in MS_to_rating:
             if MS_to_rating[url] != source.isfakenews:
                 acc_ratings += 1
-    aggregate_acc[time_i] += acc_ratings/len(media_sources)
+    if len(MS_to_rating) != 0:
+        aggregate_acc[time_i] += float(acc_ratings)/float(len(MS_to_rating))
+
     print "ACCURACY:"
     print aggregate_acc
 
@@ -82,7 +83,7 @@ def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time
 
 def Plot_Data(accuracy,num_iterations):
     iterations = range(1,num_iterations+1)
-    plt.plot(accuracy,iterations,color = 'green', marker = 'o', linestyle = 'solid')
+    plt.plot(iterations,accuracy,color = 'green', marker = 'o', linestyle = 'solid')
     plt.title("Average Accuracy per iteration of blockchain")
     plt.ylabel("Average Accuracy")
     plt.show()
