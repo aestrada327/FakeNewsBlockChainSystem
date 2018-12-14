@@ -3,17 +3,21 @@ from Class_definitions import Document, Rating, Transaction, Block_Node, Website
 import random
 
 # Parameter Instantiation
-num_Users = 1000
+num_rankers= 1000
+num_miners = 100
+num_media_sources = 100
 Coin_Worth = 1
 Num_Block_Mined = 1
 Time_to_mine_block = 1
 ratio_of_good_bad_people = .5
 
+num_iterations = 1000
+num_simulations = 1000
 # Create Num User With Ratio
 def Create_Num_User_with_ratio(num_users,ratio_of_good_bad_people):
     pass
 
-#Create Num Rankers and adds them to the network
+# Create Num Rankers and adds them to the network
 def Create_Num_Rankers(num_rankers,network):
     rankers = []
     for i in range(num_rankers):
@@ -22,6 +26,7 @@ def Create_Num_Rankers(num_rankers,network):
         rankers.append(n_ranker)
     return rankers
 
+# Creates Miners and places them inside the network
 def Create_Num_Miners(num_miners,network):
     miners = []
     for i in range(num_miners):
@@ -29,6 +34,15 @@ def Create_Num_Miners(num_miners,network):
         n_miner = Miner(n_email,network)
         miners.append(n_miner)
     return miners
+
+# Creates Media Sources and adds them to the network
+def Create_Num_Media_Sources(num_sources,network):
+    sources = []
+    for i in range(num_sources):
+        n_name = ''.join(["MediaSource",str(i+1)])
+        n_source = Media_Source(network,n_name)
+    network.add_mediasources(sources)
+    return sources
 
 def Collect_Data(rankers,miners):
     pass
@@ -49,10 +63,12 @@ def Simulate_One_Hash_Interval(ranker_lst,miner_lst):
     rand_miner = miner_lst[r]
     rand_miner.run()
 
-def Simulate_number_of_passed(num_hashes,num_rankers,num_miners):
+def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
+    network = Network()
     # Rankers and Miners
-    rankers = Create_Num_Rankers(num_rankers)
-    miners = Create_Num_Miners(num_miners)
+    rankers = Create_Num_Rankers(num_rankers,network)
+    miners = Create_Num_Miners(num_miners,network)
+    sources = Create_Num_Media_Sources(num_media_sources,network)
     data = []
 
     # Run Num_Hash Intervals
@@ -63,3 +79,8 @@ def Simulate_number_of_passed(num_hashes,num_rankers,num_miners):
 
     # Plotting the Data for the simulation
     Plot_Data(data)
+
+# Doing Num Simulations
+def main_function():
+    for i in range(num_simulations):
+        simulate_num_intervals(num_iterations,num_rankers,num_miners,num_media_sources)

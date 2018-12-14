@@ -195,9 +195,12 @@ class User:
     MAC_ADDRESS_LENGTH = 12
 
     def __init__(self,email,network,private_key = None,public_key = None,money = 0, blockchain = None, mac_address = None):
+        # adding self to the network
+        self.network = network
+        network.add_users([self])
+
         self.money = money
         self.blockchain = blockchain
-        self.network = network
         self.email = email
 
         # Dictionary of emails of people who have previously gotten a negative score
