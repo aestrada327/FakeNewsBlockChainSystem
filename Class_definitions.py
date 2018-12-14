@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 from Crypto.PublicKey import RSA
 from Crypto import Random
+import sys
 
 # THIS FILE DEFINES ALL THE RELEVANT CLASSES FOR the Fake News Reputation System Simulation ####
 
@@ -26,6 +27,7 @@ class Network:
         self.rankers = []
         self.websites = []
         self.emails = []
+        self.media_sources = []
         self.emails_to_IPs = {}
         self.MAC_to_IPs = {}
         self.MAC_to_users = {}
@@ -38,6 +40,26 @@ class Network:
                 self.miners.append(user)
             if isinstance(user,Ranker):
                 self.rankers.append(user)
+
+    def add_mediasources(self,media_source_lst):
+        if all(map(lambda source: isinstance(source,Media_Source),media_source_lst)):
+            self.media_sources.append(media_source_lst)
+        else:
+            for source in media_source_lst:
+                if isinstance(source,Media_Source):
+                    self.media_sources.append(source)
+
+    #Randomly picks a media source until a media source is not found
+    def get_new_source(self,visited_url_dict):
+        # Checking if visited_url has been found
+        if len(visited_url_dict) > len(self.media_sources):
+            return None
+
+        # finding new media source
+        rand = random.randint(0,len(self.media_sources) - 1)
+        while self.media_sources[rand].url in visited_url_dict:
+            rand = random.randint(0,len(self.media_sources) - 1)
+        return self.media_sources[rand]
 
     #add users to the network
     def add_users(self,user_lst):
@@ -95,7 +117,6 @@ class Network:
                 website.submit_PK(IP_address,public_key)
                 CA_found = True
         return CA_found
-
 
 # Generic website that makes has a network
 class Website:
@@ -227,7 +248,6 @@ class User:
     def Valid_Ratings(rating_lst):
         return all(map(lambda rating: User.Valid_Rating(rating), rating_lst))
 
-    #TODO # work out once encryption is finished and Rating Class is defined
     @staticmethod
     def Valid_Rating(rating):
         pass
@@ -248,17 +268,24 @@ class User:
 class Miner(User):
     # average time (secs) for hash
     avg_time_hash = 60
-
+    max_nonce_val = sys.maxsize
     def __init__(self,email,private_key,public_key,network,money = 0, blockchain = None,ratings = []):
         super(Miner,self).__init__(email,private_key,public_key,network,money, blockchain)
         # creating empty Block with previous hash
-        self.__block = Block(blockchain.get_last_hash())
+        self.__block = Block(blockchain.get_last_hash(),self.email)
         self.mined_hash = None
 
+    #Main Call from Simulation Code
+    def run(self):
+        self.Mine_Hash_Val()
+        self.add_block_to_block_chain(self.__block)
+        self.send_block_to_users()
+
     #searches for correct hash value
-    #TODO # currently on sleeping for avg_time
     def Mine_Hash_Val(self):
-        time.sleep(Miner.avg_time_hash)
+        r = random.randint(0,Miner.max_nonce_val)
+        self.__block.change_nonce(r)
+        self.__block.update_footer()
 
     def Add_block_to_blockchain(self,block):
         self.blockchain.add_block_to_end(block)
@@ -286,19 +313,55 @@ class Miner(User):
 
 # users that rank documents
 class Ranker(User):
-    def __init__(self,email,private_key,public_key,doc_list,money = 0, blockchain = None):
-        super(Ranker,self).__init__(self,email,private_key,public_key,money, blockchain)
-        self.doc_list = {}
 
-    def give_ranking(self,doc):
-        pass
+    # ranking accuracy of users [0,1]
+    ranking_acc = .7
+
+    def __init__(self,email,network,private_key,public_key,doc_list,money = 0, blockchain = None):
+        super(Ranker,self).__init__(self,email,network,private_key,public_key,money, blockchain)
+        self.visited_MS_urls = {}
+
+    # Main Function run by the simulation code
+    def run(self):
+        self.rank_new_media_source()
+
+    def rank_new_media_source(self):
+        new_source = self.get_new_media_source()
+        ranking = self.give_ranking(new_source)
+        self.publish_rankings([ranking])
+
+    def get_new_media_source(self):
+        new_source = self.network.get_new_source(self.visited_MS_dict)
+        if new_source != None:
+            self.visited_MS_urls[new_source.url] = True
+            return new_source
+        return None
+
+    def give_ranking(self,media_source):
+        r = random.random()
+        #accurate rating
+        if r <= Ranker.ranking_acc:
+            isMSfake = media_source.isfakenews
+        else:
+            isMSfake = not media_source.isfakenews
+        return Rating(self.email, media_source.url,isMSfake)
 
     def publish_rankings(self,rankings):
         self.network.publish_rankings(rankings)
 
 # incase a user is a ranker and a miner
 class Miner_Ranker(User,Miner,Ranker):
-    pass
+    def __init__(self):
+        pass
+    def run(self,Lottery_winner):
+        if Lottery_winner:
+            # running like a miner
+            self.Mine_Hash_Val()
+            self.add_block_to_block_chain(self.__block)
+            self.send_block_to_users()
+        else:
+            # running like a Rater
+            self.rank_new_media_source()
 
 #A source that exclusively makes new documents
 #TODO
@@ -308,10 +371,10 @@ class Media_Source:
     min_trust = 0
     max_trust = 10
 
-    def __init__(self,network, name, url = None, document_lst = [],trustworthiness = -1):
+    def __init__(self,network, name, url = None, document_lst = [],isfakenews):
         self.network = network
         self.name = name
-
+        self.isfakenews = isfakenews
         if url == None:
             self.url = self.__generate_URL()
 
@@ -319,10 +382,7 @@ class Media_Source:
             self.document_lst = document_lst
         else:
             self.document_lst = []
-        if Media_Source.min_trust<=trustworthiness<=Media_Source.max_trust:
-            self.__trustworthiness = trustworthiness
-        else:
-            self.__trustworthiness = random.randint(Media_Source.min_trust,Media_Source.max_trust)
+
 
     #generates a new document that is not Fake news with a probability of Trust/(max_trust-min_trust)
     def make_new_Doc(self):
@@ -358,7 +418,7 @@ class Document:
 
 #Items to be placed on the blockchain
 class Block_Item:
-    def __init__(self, hashed_signature):
+    def __init__(self, hashed_signature = None):
         self.hashed_signature = hashed_signature
 
     def toString(self):
@@ -368,14 +428,14 @@ class Block_Item:
 # defines a rating generated by a user for a document
 # TODO # needs encryption method
 class Rating(Block_Item):
-    def __init__(self,email, media_source_url, is_fake_news, hashed_signature):
+    def __init__(self,email, media_source_url, is_fake_news, hashed_signature = None):
         # Markers to identify User
         self.email = email
 
         #Media_source_identifier
         self.media_source_url = media_source_url
 
-        #Rating that defines if
+        #Rating that defines if media is fake or not
         self.isFakeNews = is_fake_news
         super(Rating, self).__init__(hashed_signature)
 
@@ -390,7 +450,7 @@ class Rating(Block_Item):
 
 #Transaction items to be placed on the block chain
 class Transaction(Block_Item):
-    def __init__(self, sender, reciever, transact_amnt, hashed_signature):
+    def __init__(self, sender, reciever, transact_amnt, hashed_signature = None):
         if isinstance(sender,User) and isinstance(reciever,User):
             self.sender_email = sender.email
             self.reciever_email = reciever.email
@@ -417,11 +477,11 @@ class Block:
     #class variables
     max_num_items = 100
 
-    def __init__(self,prefix,miner_PK, nonce, footer = None,block_items = []):
+    def __init__(self,prefix,miner_email, nonce = None, footer = None,block_items = []):
         self.prefix = prefix
         self.block_items = []
         self.nonce = nonce
-        self.generation_transaction = miner_PK
+        self.generation_transaction = miner_email
         self.add_block_items(block_items)
         self.footer = self.__generatehashval()
 
@@ -479,9 +539,9 @@ class Block:
         ratings = {}
         for item in self.block_items:
             if item.item_type() == "rating":
-            	if users[item.email] >= 0 or item.email not in users:
-	                val = 1
-	                if item.isFakeNews:
+                if users[item.email] >= 0 or item.email not in users:
+                    val = 1
+                    if item.isFakeNews:
 	                    val = -1
 	                if item.media_source_url in ratings:
 	                    ratings[item.media_source_url] += val
@@ -709,54 +769,40 @@ class BlockChain:
 
     # returns dict of {news_source: 1 or 0}
     def get_all_ratings(self, users):
-    	curr_b = self.last_b
-    	all_ratings = {}
-    	binary_ratings = {}
-    	while curr_b is not None:
-    		curr_ratings = curr_b.block.aggregate_block_ratings(users)
-    		all_ratings = Counter(all_ratings) + Counter(curr_ratings)
-    		curr_b = curr_b.prev
-    	# 1 if real, 0 if fake
+        curr_b = self.last_b
+        all_ratings = {}
+        binary_ratings = {}
+        while curr_b is not None:
+            curr_ratings = curr_b.block.aggregate_block_ratings(users)
+            all_ratings = Counter(all_ratings) + Counter(curr_ratings)
+            curr_b = curr_b.prev
+        # 1 if real, 0 if fake
     	for source, rating in all_ratings.iteritems():
-    		if rating > 0:
-    			binary_ratings[source] = 1
-    		else:
-    			binary_ratings[source] = 0
-    	return binary_ratings
+            if rating > 0:
+                binary_ratings[source] = 1
+            else:
+                binary_ratings[source] = 0
+        return binary_ratings
 
     def score_all_users(self):
-    	all_ratings = self.get_all_ratings()
-    	curr_b = self.last_b
-    	users = {}
-    	while curr_b is not None:
-    		curr_ratings = curr_b.block.aggregate_block_ratings()
-    		all_ratings = Counter(all_ratings) + Counter(curr_ratings)
-    		curr_b = curr_b.prev
-    		curr_users = curr_b.block.ratings_by_user()
-    		for user, ratings in curr_users.iteritems():
-    			score = 0
-    			for source, rating in ratings.iteritems():
-    				if all_ratings[source] == ratings[source]:
-    					score += 1
-    				else:
-    					score -= 1
-    			if user in users:
-    				users[user] += score
-    			else:
-    				users[user] = score
-    	self.users = users
-    	return users
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        all_ratings = self.get_all_ratings()
+        curr_b = self.last_b
+        users = {}
+        while curr_b is not None:
+            curr_ratings = curr_b.block.aggregate_block_ratings()
+            all_ratings = Counter(all_ratings) + Counter(curr_ratings)
+            curr_b = curr_b.prev
+            curr_users = curr_b.block.ratings_by_user()
+            for user, ratings in curr_users.iteritems():
+                score = 0
+                for source, rating in ratings.iteritems():
+                    if all_ratings[source] == ratings[source]:
+                        score += 1
+                    else:
+                        score -= 1
+                if user in users:
+                    users[user] += score
+                else:
+                    users[user] = score
+        self.users = users
+        return users
