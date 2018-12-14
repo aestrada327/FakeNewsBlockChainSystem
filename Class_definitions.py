@@ -195,7 +195,7 @@ class User:
 
     MAC_ADDRESS_LENGTH = 12
 
-    def __init__(self,email,network,private_key = None,public_key = None,money = 0, blockchain = None, mac_address = None):
+    def __init__(self,email,network,private_key = None,public_key = None,money = 0, blockchain = BlockChain(None,None), mac_address = None):
         # adding self to the network
         self.network = network
         network.add_users([self])
@@ -240,6 +240,7 @@ class User:
             self.blockchain.add(block)
             self.update_block_chain_dep_vals()
         else:
+            print "Block Not Recieved"
             return False
         return True
 
@@ -268,6 +269,7 @@ class User:
             #ensures that the current block has the previous hash
             if block.prefix == blockchain.get_last_hash() and self.Valid_Ratings(block.block_items):
                 return True
+        print "invalid Block"
         return False
 
     # checks if the ratings in a block list are correctly defined
@@ -320,7 +322,7 @@ class Miner(User):
     max_nonce_val = sys.maxsize
     start_prefix_val = 1
 
-    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = None,ratings = []):
+    def __init__(self,email,network,private_key=None,public_key=None,money = 0, blockchain = BlockChain(None,None),ratings = []):
         User.__init__(self,email,network,private_key,public_key,money,blockchain)
 
         # creating empty Block with previous hash
@@ -344,7 +346,11 @@ class Miner(User):
         self.__block.update_footer()
 
     def add_block_to_blockchain(self,block):
-        self.blockchain.add_block_to_end(block)
+        if self.blockchain is not None:
+            self.blockchain.add_block_to_end(block)
+        else:
+            new_node = Block_Node(block)
+            self.blockchain = BlockChain(new_node,new_node)
 
     def send_block_to_users(self):
         self.network.send_block(self.__block,self)
@@ -380,7 +386,7 @@ class Ranker(User):
     # ranking accuracy of users [0,1]
     ranking_acc = .7
 
-    def __init__(self,email,network,private_key=None,public_key=None,doc_list = [],money = 0, blockchain = None):
+    def __init__(self,email,network,private_key=None,public_key=None,doc_list = [],money = 0, blockchain = BlockChain(None,None)):
         User.__init__(self,email,network,private_key,public_key,money, blockchain)
         self.visited_MS_urls = {}
 
@@ -669,6 +675,7 @@ class BlockChain:
         self.users_money = {}
 
     # gets length by working backwards from last to first
+    # prevents cycling
     def __get_length(self,first,last):
         counter = 0
         curr_b = last
@@ -682,20 +689,32 @@ class BlockChain:
 
     # Adds Block to the End of the Block_Chain
     def add_block_end(self,block):
-        if isinstance(block,Block):
-            n_block = Block_Node(block)
-            n_block.prev = self.last_b
-            self.last_b.change_nxt(n_block)
+        if self.first_b is None or self.last_b is None:
+            if isinstance(block,Block):
+                n_block = Block_Node(block)
+            elif isinstance(block,Block_Node):
+                n_block = block
+            else:
+                return False
+            self.first_b = n_block
             self.last_b = n_block
-            self.total_length += 1
-            return True
-        if isinstance(block, Block_Node):
-            block.prev = self.last_b
-            self.last_b.change_nxt(block)
-            self.last_b = block
-            self.total_length += 1
-            return True
-        return False
+            self.total_length = 1
+        else:
+            if isinstance(block,Block):
+                # checking if BlockChain does not have None Values
+                n_block = Block_Node(block)
+                n_block.prev = self.last_b
+                self.last_b.change_nxt(n_block)
+                self.last_b = n_block
+                self.total_length += 1
+                return True
+            elif isinstance(block, Block_Node):
+                block.prev = self.last_b
+                self.last_b.change_nxt(block)
+                self.last_b = block
+                self.total_length += 1
+                return True
+            return False
 
     # Adds Block to the End of the Forked Block_Chain
     def add_block_end_forked(self, block):

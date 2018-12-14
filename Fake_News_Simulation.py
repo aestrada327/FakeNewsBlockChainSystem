@@ -52,7 +52,7 @@ def Create_Num_Media_Sources(num_sources,network):
 
 def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time_i):
     # Getting a random ranker
-    r = random.randint(0,len(rankers))
+    r = random.randint(0,len(rankers)-1)
     ranker = rankers[r]
 
     # Getting the average accuracy
