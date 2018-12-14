@@ -1,5 +1,5 @@
 from Class_definitions import Ranker,Network,Miner,Block,Block_Item,BlockChain,User,Media_Source
-from Class_definitions import Document, Rating, Transaction, Block_Node, Website, Miner_Ranker
+from Class_definitions import Document, Rating, Transaction, Block_Node, Website, Miner_Ranker,Evil_Ranker
 import random
 from matplotlib import pyplot as plt
 import sys
@@ -11,13 +11,27 @@ num_media_sources = 10
 Coin_Worth = 1
 Num_Block_Mined = 1
 Time_to_mine_block = 1
-ratio_of_good_bad_people = .5
+Percent_Of_GOOD = .7
 
 num_iterations = 10
 num_simulations = 10
 # Create Num User With Ratio
-def Create_Num_User_with_ratio(num_users,ratio_of_good_bad_people):
-    pass
+def Create_Num_Rankers_with_ratio(num_rankers,percent_good,network):
+    num_good = int(round(percent_good * num_rankers))
+    rankers = []
+    # creating good users
+    for i in range(num_good):
+        n_email = ''.join(["ranker", str(i + 1), "@gmail.com"])
+        n_ranker = Ranker(n_email, network)
+        rankers.append(n_ranker)
+
+    #creating bad users
+    for i in range(num_rankers - num_good):
+        n_email = ''.join(["ranker", str(i + 1 + num_good), "@gmail.com"])
+        n_ranker = Evil_Ranker(n_email,network)
+        rankers.append(n_ranker)
+
+    return rankers
 
 # Create Media Source with Ratio
 def Create_Num_Media_source_with_ratio(num_sources,ratio_of_good_bad):
@@ -58,14 +72,7 @@ def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time
 
     # Getting the average accuracy
     user_dict = ranker.blockchain.users
-
-    # printing the ledger of selected ranker
-    print "Current Ledger"
-    print ranker.get_Ledger()
-
     MS_to_rating = ranker.blockchain.get_all_ratings(user_dict)
-    print "All the Ratings"
-    print MS_to_rating
     acc_ratings = 0
     for source in media_sources:
         url = source.url
@@ -74,9 +81,6 @@ def Collect_Data(rankers,miners,media_sources,aggregate_acc,aggregate_money,time
                 acc_ratings += 1
     if len(MS_to_rating) != 0:
         aggregate_acc[time_i] += float(acc_ratings)/float(len(MS_to_rating))
-
-    print "ACCURACY:"
-    print aggregate_acc
 
     #TODO Get average money per user
     return aggregate_acc
@@ -120,10 +124,10 @@ def simulate_One_Hash_Interval(ranker_lst,miner_lst):
     reinitialize_all_miners(miner_lst)
 
 # Simulate Code
-def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
+def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources,percent_good = 1):
     network = Network()
     # Rankers and Miners
-    rankers = Create_Num_Rankers(num_rankers,network)
+    rankers = Create_Num_Rankers_with_ratio(num_rankers,percent_good,network)
     miners = Create_Num_Miners(num_miners,network)
     sources = Create_Num_Media_Sources(num_media_sources,network)
 
@@ -136,10 +140,8 @@ def simulate_num_intervals(num_hashes,num_rankers,num_miners,num_media_sources):
         print i+1
         simulate_One_Hash_Interval(rankers,miners)
         acc = Collect_Data(rankers,miners,sources,acc,avg_money,i)
-
     #getting Ledger information
     Print_Ledger(rankers)
-
     return acc
 
 # Doing Num Simulations
@@ -155,4 +157,39 @@ def main_function():
     agg_acc = map(lambda x: x/num_simulations, agg_acc)
     Plot_Data(agg_acc,num_iterations)
 
-main_function()
+def bad_actors_simulation():
+    agg_acc = [0] * num_iterations
+    for i in range(num_simulations):
+        # printing simulation
+        print "starting simulation {}".format(i + 1)
+        sys.stdout.flush()
+        acc = simulate_num_intervals(num_iterations, num_rankers, num_miners, num_media_sources,Percent_Of_GOOD)
+        agg_acc = [x + y for x, y in zip(agg_acc, acc)]
+    agg_acc = map(lambda x: x / num_simulations, agg_acc)
+    Plot_Data(agg_acc, num_iterations)
+
+def simulate_GB_ratio_change(num_simulations,chain_length,num_miners,num_rankers,num_sources,percent_good):
+    agg_acc = []
+    for sim_i in range(num_simulations):
+        network = Network()
+        # Rankers and Miners
+        rankers = Create_Num_Rankers_with_ratio(num_rankers, percent_good, network)
+        miners = Create_Num_Miners(num_miners, network)
+        sources = Create_Num_Media_Sources(num_media_sources, network)
+
+
+def good_bad_ratio_simulation_change(num_intervals):
+    chain_length = 10
+    num_simulations = 10
+    agg_acc = [0] * num_intervals
+    num_sources = 10
+    num_rankers = 10
+    num_miners = 10
+
+    # For each ratio of good to bad
+    for i in range(num_intervals):
+        curr_ratio = i*(1.0/num_intervals)
+        agg_acc[i] = simulate_GB_ratio_change(num_simulations,chain_length,num_miners,num_rankers,num_sources,curr_ratio)
+    return agg_acc
+
+bad_actors_simulation()

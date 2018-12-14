@@ -81,8 +81,6 @@ class Network:
     def send_rating_to_miners(self, sender, rating):
         for miner in self.miners:
             if not (miner is sender):
-#                print "recieving rating"
-#                sys.stdout.flush()
                 miner.recieve_rating(rating)
 
     def send_ratings_to_miners(self,sender,ratings):
@@ -242,8 +240,6 @@ class User:
     #adds block to its current block chain iff the block is a valid block for a blockchain
     def recieve_block(self,block):
         if self.Valid_Block(block,self.blockchain):
-#            print("Recieved Block")
-#            sys.stdout.flush()
             #TODO Needs to Add Block Appropriately
             self.blockchain.add_block_end(block)
             self.update_block_chain_dep_vals()
@@ -381,8 +377,6 @@ class Miner(User):
 
     def recieve_rating(self,rating):
         if isinstance(rating,Rating):
-#            print "Recieving Rating!"
-#            sys.stdout.flush()
             self.add_rating_to_block(rating)
 
     def recieve_ratings(self,rating_lst):
@@ -400,8 +394,6 @@ class Miner(User):
 
     def add_rating_to_block(self,rating):
         if self.Valid_Rating(rating):
-#            print "Valid Block"
-#            sys.stdout.flush()
             self.__block.add_block_items([rating])
         else:
             print "inValid Rating"
@@ -409,8 +401,6 @@ class Miner(User):
 
     def add_ratings_to_block(self,ratings):
         if self.Valid_Ratings(ratings):
-#            print "Valid Block"
-#            sys.stdout.flush()
             self.__block.add_block_items(ratings)
 #        else:
 #            print "InValid Block :("
@@ -434,8 +424,6 @@ class Ranker(User):
     def rank_new_media_source(self):
         new_source = self.get_new_media_source()
         ranking = self.give_ranking(new_source)
-#        print ranking.toString()
-#        sys.stdout.flush()
         self.publish_ranking(ranking)
 
     def get_new_media_source(self):
